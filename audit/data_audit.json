@@ -1,0 +1,1539 @@
+{
+  "audit_as_of": "2026-11-09",
+  "source_commit": "e6744429ee395bc86f247348c6184bb08d4eb361",
+  "source_commit_timestamp": "2026-09-22T09:33:49Z",
+  "complete_seasons": [
+    "2015-16",
+    "2016-17",
+    "2017-18",
+    "2018-19",
+    "2020-21",
+    "2021-22",
+    "2022-23",
+    "2023-24",
+    "2024-25",
+    "2025-26"
+  ],
+  "complete_season_match_count": 3800,
+  "source_team_names": [
+    "AFC Bournemouth",
+    "Arsenal FC",
+    "Aston Villa",
+    "Aston Villa FC",
+    "Brentford FC",
+    "Brighton & Hove Albion",
+    "Brighton & Hove Albion FC",
+    "Burnley FC",
+    "Cardiff City",
+    "Chelsea FC",
+    "Coventry City FC",
+    "Crystal Palace",
+    "Crystal Palace FC",
+    "Everton FC",
+    "Fulham FC",
+    "Huddersfield Town",
+    "Hull City",
+    "Hull City AFC",
+    "Ipswich Town FC",
+    "Leeds United FC",
+    "Leicester City",
+    "Leicester City FC",
+    "Liverpool FC",
+    "Luton Town FC",
+    "Manchester City",
+    "Manchester City FC",
+    "Manchester United",
+    "Manchester United FC",
+    "Middlesbrough FC",
+    "Newcastle United",
+    "Newcastle United FC",
+    "Norwich City",
+    "Norwich City FC",
+    "Nottingham Forest FC",
+    "Sheffield United",
+    "Sheffield United FC",
+    "Southampton FC",
+    "Stoke City",
+    "Sunderland AFC",
+    "Swansea City",
+    "Tottenham Hotspur",
+    "Tottenham Hotspur FC",
+    "Watford FC",
+    "West Bromwich Albion",
+    "West Bromwich Albion FC",
+    "West Ham United",
+    "West Ham United FC",
+    "Wolverhampton Wanderers",
+    "Wolverhampton Wanderers FC"
+  ],
+  "seasons": [
+    {
+      "season": "2015-16",
+      "name": "English Premier League 2015/16",
+      "layout": "matches",
+      "matches": 380,
+      "valid_full_time_scores": 380,
+      "completed_on_or_before_as_of": 380,
+      "teams": 20,
+      "date_min": "2015-08-08",
+      "date_max": "2016-05-17",
+      "latest_completed_date": "2016-05-17",
+      "missing": {
+        "date": 0,
+        "time": 0,
+        "team1": 0,
+        "team2": 0,
+        "round": 0
+      },
+      "time_without_timezone": 380,
+      "time_with_explicit_timezone": 0,
+      "match_keys": {
+        "date": 380,
+        "round": 380,
+        "score": 380,
+        "team1": 380,
+        "team2": 380,
+        "time": 380
+      },
+      "score_keys": {
+        "ft": 380,
+        "ht": 348
+      },
+      "raw_score_formats": {
+        "object": 380
+      },
+      "duplicate_ordered_team_pairs": [],
+      "missing_ordered_team_pairs_count": 0,
+      "team_appearance_counts": {
+        "AFC Bournemouth": 38,
+        "Arsenal FC": 38,
+        "Aston Villa": 38,
+        "Chelsea FC": 38,
+        "Crystal Palace": 38,
+        "Everton FC": 38,
+        "Leicester City": 38,
+        "Liverpool FC": 38,
+        "Manchester City": 38,
+        "Manchester United": 38,
+        "Newcastle United": 38,
+        "Norwich City": 38,
+        "Southampton FC": 38,
+        "Stoke City": 38,
+        "Sunderland AFC": 38,
+        "Swansea City": 38,
+        "Tottenham Hotspur": 38,
+        "Watford FC": 38,
+        "West Bromwich Albion": 38,
+        "West Ham United": 38
+      },
+      "unscored_on_or_before_as_of": 0,
+      "unscored_after_as_of": 0,
+      "future_scored_rows": [],
+      "errors": [],
+      "structurally_complete_380_match_season": true,
+      "label_counts_data_integrity_only": {
+        "H": 157,
+        "A": 116,
+        "D": 107
+      },
+      "example_record": {
+        "round": "Matchday 1",
+        "date": "2015-08-08",
+        "time": "12:45",
+        "team1": "Manchester United",
+        "team2": "Tottenham Hotspur",
+        "score": {
+          "ht": [
+            1,
+            0
+          ],
+          "ft": [
+            1,
+            0
+          ]
+        }
+      },
+      "download_status": 200
+    },
+    {
+      "season": "2016-17",
+      "name": "English Premier League 2016/17",
+      "layout": "matches",
+      "matches": 380,
+      "valid_full_time_scores": 380,
+      "completed_on_or_before_as_of": 380,
+      "teams": 20,
+      "date_min": "2016-08-13",
+      "date_max": "2017-05-21",
+      "latest_completed_date": "2017-05-21",
+      "missing": {
+        "date": 0,
+        "time": 0,
+        "team1": 0,
+        "team2": 0,
+        "round": 0
+      },
+      "time_without_timezone": 380,
+      "time_with_explicit_timezone": 0,
+      "match_keys": {
+        "date": 380,
+        "round": 380,
+        "score": 380,
+        "team1": 380,
+        "team2": 380,
+        "time": 380
+      },
+      "score_keys": {
+        "ft": 380,
+        "ht": 353
+      },
+      "raw_score_formats": {
+        "object": 380
+      },
+      "duplicate_ordered_team_pairs": [],
+      "missing_ordered_team_pairs_count": 0,
+      "team_appearance_counts": {
+        "AFC Bournemouth": 38,
+        "Arsenal FC": 38,
+        "Burnley FC": 38,
+        "Chelsea FC": 38,
+        "Crystal Palace": 38,
+        "Everton FC": 38,
+        "Hull City": 38,
+        "Leicester City": 38,
+        "Liverpool FC": 38,
+        "Manchester City": 38,
+        "Manchester United": 38,
+        "Middlesbrough FC": 38,
+        "Southampton FC": 38,
+        "Stoke City": 38,
+        "Sunderland AFC": 38,
+        "Swansea City": 38,
+        "Tottenham Hotspur": 38,
+        "Watford FC": 38,
+        "West Bromwich Albion": 38,
+        "West Ham United": 38
+      },
+      "unscored_on_or_before_as_of": 0,
+      "unscored_after_as_of": 0,
+      "future_scored_rows": [],
+      "errors": [],
+      "structurally_complete_380_match_season": true,
+      "label_counts_data_integrity_only": {
+        "H": 187,
+        "A": 109,
+        "D": 84
+      },
+      "example_record": {
+        "round": "Matchday 1",
+        "date": "2016-08-13",
+        "time": "12:30",
+        "team1": "Hull City",
+        "team2": "Leicester City",
+        "score": {
+          "ht": [
+            1,
+            0
+          ],
+          "ft": [
+            2,
+            1
+          ]
+        }
+      },
+      "download_status": 200
+    },
+    {
+      "season": "2017-18",
+      "name": "English Premier League 2017/18",
+      "layout": "matches",
+      "matches": 380,
+      "valid_full_time_scores": 380,
+      "completed_on_or_before_as_of": 380,
+      "teams": 20,
+      "date_min": "2017-08-11",
+      "date_max": "2018-05-13",
+      "latest_completed_date": "2018-05-13",
+      "missing": {
+        "date": 0,
+        "time": 0,
+        "team1": 0,
+        "team2": 0,
+        "round": 0
+      },
+      "time_without_timezone": 380,
+      "time_with_explicit_timezone": 0,
+      "match_keys": {
+        "date": 380,
+        "round": 380,
+        "score": 380,
+        "team1": 380,
+        "team2": 380,
+        "time": 380
+      },
+      "score_keys": {
+        "ft": 380,
+        "ht": 348
+      },
+      "raw_score_formats": {
+        "object": 380
+      },
+      "duplicate_ordered_team_pairs": [],
+      "missing_ordered_team_pairs_count": 0,
+      "team_appearance_counts": {
+        "AFC Bournemouth": 38,
+        "Arsenal FC": 38,
+        "Brighton & Hove Albion": 38,
+        "Burnley FC": 38,
+        "Chelsea FC": 38,
+        "Crystal Palace": 38,
+        "Everton FC": 38,
+        "Huddersfield Town": 38,
+        "Leicester City": 38,
+        "Liverpool FC": 38,
+        "Manchester City": 38,
+        "Manchester United": 38,
+        "Newcastle United": 38,
+        "Southampton FC": 38,
+        "Stoke City": 38,
+        "Swansea City": 38,
+        "Tottenham Hotspur": 38,
+        "Watford FC": 38,
+        "West Bromwich Albion": 38,
+        "West Ham United": 38
+      },
+      "unscored_on_or_before_as_of": 0,
+      "unscored_after_as_of": 0,
+      "future_scored_rows": [],
+      "errors": [],
+      "structurally_complete_380_match_season": true,
+      "label_counts_data_integrity_only": {
+        "H": 173,
+        "D": 99,
+        "A": 108
+      },
+      "example_record": {
+        "round": "Matchday 1",
+        "date": "2017-08-11",
+        "time": "19:45",
+        "team1": "Arsenal FC",
+        "team2": "Leicester City",
+        "score": {
+          "ht": [
+            2,
+            2
+          ],
+          "ft": [
+            4,
+            3
+          ]
+        }
+      },
+      "download_status": 200
+    },
+    {
+      "season": "2018-19",
+      "name": "English Premier League 2018/19",
+      "layout": "matches",
+      "matches": 380,
+      "valid_full_time_scores": 380,
+      "completed_on_or_before_as_of": 380,
+      "teams": 20,
+      "date_min": "2018-08-10",
+      "date_max": "2019-05-12",
+      "latest_completed_date": "2019-05-12",
+      "missing": {
+        "date": 0,
+        "time": 0,
+        "team1": 0,
+        "team2": 0,
+        "round": 0
+      },
+      "time_without_timezone": 380,
+      "time_with_explicit_timezone": 0,
+      "match_keys": {
+        "date": 380,
+        "round": 380,
+        "score": 380,
+        "team1": 380,
+        "team2": 380,
+        "time": 380
+      },
+      "score_keys": {
+        "ft": 380,
+        "ht": 358
+      },
+      "raw_score_formats": {
+        "object": 380
+      },
+      "duplicate_ordered_team_pairs": [],
+      "missing_ordered_team_pairs_count": 0,
+      "team_appearance_counts": {
+        "AFC Bournemouth": 38,
+        "Arsenal FC": 38,
+        "Brighton & Hove Albion": 38,
+        "Burnley FC": 38,
+        "Cardiff City": 38,
+        "Chelsea FC": 38,
+        "Crystal Palace": 38,
+        "Everton FC": 38,
+        "Fulham FC": 38,
+        "Huddersfield Town": 38,
+        "Leicester City": 38,
+        "Liverpool FC": 38,
+        "Manchester City": 38,
+        "Manchester United": 38,
+        "Newcastle United": 38,
+        "Southampton FC": 38,
+        "Tottenham Hotspur": 38,
+        "Watford FC": 38,
+        "West Ham United": 38,
+        "Wolverhampton Wanderers": 38
+      },
+      "unscored_on_or_before_as_of": 0,
+      "unscored_after_as_of": 0,
+      "future_scored_rows": [],
+      "errors": [],
+      "structurally_complete_380_match_season": true,
+      "label_counts_data_integrity_only": {
+        "H": 181,
+        "A": 128,
+        "D": 71
+      },
+      "example_record": {
+        "round": "Matchday 1",
+        "date": "2018-08-10",
+        "time": "20:00",
+        "team1": "Manchester United",
+        "team2": "Leicester City",
+        "score": {
+          "ht": [
+            1,
+            0
+          ],
+          "ft": [
+            2,
+            1
+          ]
+        }
+      },
+      "download_status": 200
+    },
+    {
+      "season": "2019-20",
+      "name": "English Premier League 2019/20",
+      "layout": "matches",
+      "matches": 380,
+      "valid_full_time_scores": 380,
+      "completed_on_or_before_as_of": 380,
+      "teams": 20,
+      "date_min": "2019-07-01",
+      "date_max": "2020-06-30",
+      "latest_completed_date": "2020-06-30",
+      "missing": {
+        "date": 0,
+        "time": 0,
+        "team1": 0,
+        "team2": 0,
+        "round": 0
+      },
+      "time_without_timezone": 380,
+      "time_with_explicit_timezone": 0,
+      "match_keys": {
+        "date": 380,
+        "round": 380,
+        "score": 380,
+        "team1": 380,
+        "team2": 380,
+        "time": 380
+      },
+      "score_keys": {
+        "ft": 380,
+        "ht": 359
+      },
+      "raw_score_formats": {
+        "object": 380
+      },
+      "duplicate_ordered_team_pairs": [],
+      "missing_ordered_team_pairs_count": 0,
+      "team_appearance_counts": {
+        "AFC Bournemouth": 38,
+        "Arsenal FC": 38,
+        "Aston Villa": 38,
+        "Brighton & Hove Albion": 38,
+        "Burnley FC": 38,
+        "Chelsea FC": 38,
+        "Crystal Palace": 38,
+        "Everton FC": 38,
+        "Leicester City": 38,
+        "Liverpool FC": 38,
+        "Manchester City": 38,
+        "Manchester United": 38,
+        "Newcastle United": 38,
+        "Norwich City": 38,
+        "Sheffield United": 38,
+        "Southampton FC": 38,
+        "Tottenham Hotspur": 38,
+        "Watford FC": 38,
+        "West Ham United": 38,
+        "Wolverhampton Wanderers": 38
+      },
+      "unscored_on_or_before_as_of": 0,
+      "unscored_after_as_of": 0,
+      "future_scored_rows": [],
+      "errors": [
+        {
+          "row": 314,
+          "season": "2019-20",
+          "issue": "date_outside_expected_season_window",
+          "date": "2019-07-01"
+        },
+        {
+          "row": 315,
+          "season": "2019-20",
+          "issue": "date_outside_expected_season_window",
+          "date": "2019-07-01"
+        },
+        {
+          "row": 316,
+          "season": "2019-20",
+          "issue": "date_outside_expected_season_window",
+          "date": "2019-07-01"
+        },
+        {
+          "row": 317,
+          "season": "2019-20",
+          "issue": "date_outside_expected_season_window",
+          "date": "2019-07-01"
+        },
+        {
+          "row": 318,
+          "season": "2019-20",
+          "issue": "date_outside_expected_season_window",
+          "date": "2019-07-02"
+        },
+        {
+          "row": 319,
+          "season": "2019-20",
+          "issue": "date_outside_expected_season_window",
+          "date": "2019-07-02"
+        },
+        {
+          "row": 320,
+          "season": "2019-20",
+          "issue": "date_outside_expected_season_window",
+          "date": "2019-07-04"
+        },
+        {
+          "row": 321,
+          "season": "2019-20",
+          "issue": "date_outside_expected_season_window",
+          "date": "2019-07-04"
+        },
+        {
+          "row": 322,
+          "season": "2019-20",
+          "issue": "date_outside_expected_season_window",
+          "date": "2019-07-04"
+        },
+        {
+          "row": 323,
+          "season": "2019-20",
+          "issue": "date_outside_expected_season_window",
+          "date": "2019-07-04"
+        },
+        {
+          "row": 324,
+          "season": "2019-20",
+          "issue": "date_outside_expected_season_window",
+          "date": "2019-07-04"
+        },
+        {
+          "row": 325,
+          "season": "2019-20",
+          "issue": "date_outside_expected_season_window",
+          "date": "2019-07-05"
+        },
+        {
+          "row": 326,
+          "season": "2019-20",
+          "issue": "date_outside_expected_season_window",
+          "date": "2019-07-05"
+        },
+        {
+          "row": 327,
+          "season": "2019-20",
+          "issue": "date_outside_expected_season_window",
+          "date": "2019-07-05"
+        },
+        {
+          "row": 328,
+          "season": "2019-20",
+          "issue": "date_outside_expected_season_window",
+          "date": "2019-07-05"
+        },
+        {
+          "row": 329,
+          "season": "2019-20",
+          "issue": "date_outside_expected_season_window",
+          "date": "2019-07-06"
+        },
+        {
+          "row": 330,
+          "season": "2019-20",
+          "issue": "date_outside_expected_season_window",
+          "date": "2019-07-07"
+        },
+        {
+          "row": 331,
+          "season": "2019-20",
+          "issue": "date_outside_expected_season_window",
+          "date": "2019-07-07"
+        },
+        {
+          "row": 332,
+          "season": "2019-20",
+          "issue": "date_outside_expected_season_window",
+          "date": "2019-07-07"
+        },
+        {
+          "row": 333,
+          "season": "2019-20",
+          "issue": "date_outside_expected_season_window",
+          "date": "2019-07-08"
+        },
+        {
+          "row": 334,
+          "season": "2019-20",
+          "issue": "date_outside_expected_season_window",
+          "date": "2019-07-08"
+        },
+        {
+          "row": 335,
+          "season": "2019-20",
+          "issue": "date_outside_expected_season_window",
+          "date": "2019-07-08"
+        },
+        {
+          "row": 336,
+          "season": "2019-20",
+          "issue": "date_outside_expected_season_window",
+          "date": "2019-07-08"
+        },
+        {
+          "row": 337,
+          "season": "2019-20",
+          "issue": "date_outside_expected_season_window",
+          "date": "2019-07-09"
+        },
+        {
+          "row": 338,
+          "season": "2019-20",
+          "issue": "date_outside_expected_season_window",
+          "date": "2019-07-09"
+        },
+        {
+          "row": 339,
+          "season": "2019-20",
+          "issue": "date_outside_expected_season_window",
+          "date": "2019-07-09"
+        },
+        {
+          "row": 340,
+          "season": "2019-20",
+          "issue": "date_outside_expected_season_window",
+          "date": "2019-07-11"
+        },
+        {
+          "row": 341,
+          "season": "2019-20",
+          "issue": "date_outside_expected_season_window",
+          "date": "2019-07-11"
+        },
+        {
+          "row": 342,
+          "season": "2019-20",
+          "issue": "date_outside_expected_season_window",
+          "date": "2019-07-11"
+        },
+        {
+          "row": 343,
+          "season": "2019-20",
+          "issue": "date_outside_expected_season_window",
+          "date": "2019-07-11"
+        },
+        {
+          "row": 344,
+          "season": "2019-20",
+          "issue": "date_outside_expected_season_window",
+          "date": "2019-07-11"
+        },
+        {
+          "row": 345,
+          "season": "2019-20",
+          "issue": "date_outside_expected_season_window",
+          "date": "2019-07-12"
+        },
+        {
+          "row": 346,
+          "season": "2019-20",
+          "issue": "date_outside_expected_season_window",
+          "date": "2019-07-12"
+        },
+        {
+          "row": 347,
+          "season": "2019-20",
+          "issue": "date_outside_expected_season_window",
+          "date": "2019-07-12"
+        },
+        {
+          "row": 348,
+          "season": "2019-20",
+          "issue": "date_outside_expected_season_window",
+          "date": "2019-07-12"
+        },
+        {
+          "row": 349,
+          "season": "2019-20",
+          "issue": "date_outside_expected_season_window",
+          "date": "2019-07-13"
+        },
+        {
+          "row": 350,
+          "season": "2019-20",
+          "issue": "date_outside_expected_season_window",
+          "date": "2019-07-14"
+        },
+        {
+          "row": 351,
+          "season": "2019-20",
+          "issue": "date_outside_expected_season_window",
+          "date": "2019-07-15"
+        },
+        {
+          "row": 352,
+          "season": "2019-20",
+          "issue": "date_outside_expected_season_window",
+          "date": "2019-07-15"
+        },
+        {
+          "row": 353,
+          "season": "2019-20",
+          "issue": "date_outside_expected_season_window",
+          "date": "2019-07-15"
+        },
+        {
+          "row": 354,
+          "season": "2019-20",
+          "issue": "date_outside_expected_season_window",
+          "date": "2019-07-15"
+        },
+        {
+          "row": 355,
+          "season": "2019-20",
+          "issue": "date_outside_expected_season_window",
+          "date": "2019-07-16"
+        },
+        {
+          "row": 356,
+          "season": "2019-20",
+          "issue": "date_outside_expected_season_window",
+          "date": "2019-07-16"
+        },
+        {
+          "row": 357,
+          "season": "2019-20",
+          "issue": "date_outside_expected_season_window",
+          "date": "2019-07-16"
+        },
+        {
+          "row": 358,
+          "season": "2019-20",
+          "issue": "date_outside_expected_season_window",
+          "date": "2019-07-16"
+        },
+        {
+          "row": 359,
+          "season": "2019-20",
+          "issue": "date_outside_expected_season_window",
+          "date": "2019-07-17"
+        },
+        {
+          "row": 360,
+          "season": "2019-20",
+          "issue": "date_outside_expected_season_window",
+          "date": "2019-07-18"
+        },
+        {
+          "row": 361,
+          "season": "2019-20",
+          "issue": "date_outside_expected_season_window",
+          "date": "2019-07-19"
+        },
+        {
+          "row": 362,
+          "season": "2019-20",
+          "issue": "date_outside_expected_season_window",
+          "date": "2019-07-19"
+        },
+        {
+          "row": 363,
+          "season": "2019-20",
+          "issue": "date_outside_expected_season_window",
+          "date": "2019-07-20"
+        },
+        {
+          "row": 364,
+          "season": "2019-20",
+          "issue": "date_outside_expected_season_window",
+          "date": "2019-07-20"
+        },
+        {
+          "row": 365,
+          "season": "2019-20",
+          "issue": "date_outside_expected_season_window",
+          "date": "2019-07-20"
+        },
+        {
+          "row": 366,
+          "season": "2019-20",
+          "issue": "date_outside_expected_season_window",
+          "date": "2019-07-21"
+        },
+        {
+          "row": 367,
+          "season": "2019-20",
+          "issue": "date_outside_expected_season_window",
+          "date": "2019-07-21"
+        },
+        {
+          "row": 368,
+          "season": "2019-20",
+          "issue": "date_outside_expected_season_window",
+          "date": "2019-07-22"
+        },
+        {
+          "row": 369,
+          "season": "2019-20",
+          "issue": "date_outside_expected_season_window",
+          "date": "2019-07-22"
+        },
+        {
+          "row": 370,
+          "season": "2019-20",
+          "issue": "date_outside_expected_season_window",
+          "date": "2019-07-26"
+        },
+        {
+          "row": 371,
+          "season": "2019-20",
+          "issue": "date_outside_expected_season_window",
+          "date": "2019-07-26"
+        },
+        {
+          "row": 372,
+          "season": "2019-20",
+          "issue": "date_outside_expected_season_window",
+          "date": "2019-07-26"
+        },
+        {
+          "row": 373,
+          "season": "2019-20",
+          "issue": "date_outside_expected_season_window",
+          "date": "2019-07-26"
+        },
+        {
+          "row": 374,
+          "season": "2019-20",
+          "issue": "date_outside_expected_season_window",
+          "date": "2019-07-26"
+        },
+        {
+          "row": 375,
+          "season": "2019-20",
+          "issue": "date_outside_expected_season_window",
+          "date": "2019-07-26"
+        },
+        {
+          "row": 376,
+          "season": "2019-20",
+          "issue": "date_outside_expected_season_window",
+          "date": "2019-07-26"
+        },
+        {
+          "row": 377,
+          "season": "2019-20",
+          "issue": "date_outside_expected_season_window",
+          "date": "2019-07-26"
+        },
+        {
+          "row": 378,
+          "season": "2019-20",
+          "issue": "date_outside_expected_season_window",
+          "date": "2019-07-26"
+        },
+        {
+          "row": 379,
+          "season": "2019-20",
+          "issue": "date_outside_expected_season_window",
+          "date": "2019-07-26"
+        }
+      ],
+      "structurally_complete_380_match_season": false,
+      "label_counts_data_integrity_only": {
+        "H": 172,
+        "A": 116,
+        "D": 92
+      },
+      "example_record": {
+        "round": "Matchday 1",
+        "date": "2019-08-09",
+        "time": "20:00",
+        "team1": "Liverpool FC",
+        "team2": "Norwich City",
+        "score": {
+          "ht": [
+            4,
+            0
+          ],
+          "ft": [
+            4,
+            1
+          ]
+        }
+      },
+      "download_status": 200
+    },
+    {
+      "season": "2020-21",
+      "name": "English Premier League 2020/21",
+      "layout": "matches",
+      "matches": 380,
+      "valid_full_time_scores": 380,
+      "completed_on_or_before_as_of": 380,
+      "teams": 20,
+      "date_min": "2020-09-12",
+      "date_max": "2021-05-23",
+      "latest_completed_date": "2021-05-23",
+      "missing": {
+        "date": 0,
+        "time": 0,
+        "team1": 0,
+        "team2": 0,
+        "round": 0
+      },
+      "time_without_timezone": 380,
+      "time_with_explicit_timezone": 0,
+      "match_keys": {
+        "date": 380,
+        "round": 380,
+        "score": 380,
+        "team1": 380,
+        "team2": 380,
+        "time": 380
+      },
+      "score_keys": {
+        "ft": 380,
+        "ht": 350
+      },
+      "raw_score_formats": {
+        "object": 380
+      },
+      "duplicate_ordered_team_pairs": [],
+      "missing_ordered_team_pairs_count": 0,
+      "team_appearance_counts": {
+        "Arsenal FC": 38,
+        "Aston Villa FC": 38,
+        "Brighton & Hove Albion FC": 38,
+        "Burnley FC": 38,
+        "Chelsea FC": 38,
+        "Crystal Palace FC": 38,
+        "Everton FC": 38,
+        "Fulham FC": 38,
+        "Leeds United FC": 38,
+        "Leicester City FC": 38,
+        "Liverpool FC": 38,
+        "Manchester City FC": 38,
+        "Manchester United FC": 38,
+        "Newcastle United FC": 38,
+        "Sheffield United FC": 38,
+        "Southampton FC": 38,
+        "Tottenham Hotspur FC": 38,
+        "West Bromwich Albion FC": 38,
+        "West Ham United FC": 38,
+        "Wolverhampton Wanderers FC": 38
+      },
+      "unscored_on_or_before_as_of": 0,
+      "unscored_after_as_of": 0,
+      "future_scored_rows": [],
+      "errors": [],
+      "structurally_complete_380_match_season": true,
+      "label_counts_data_integrity_only": {
+        "A": 153,
+        "H": 144,
+        "D": 83
+      },
+      "example_record": {
+        "round": "Matchday 1",
+        "date": "2020-09-12",
+        "time": "12:30",
+        "team1": "Fulham FC",
+        "team2": "Arsenal FC",
+        "score": {
+          "ht": [
+            0,
+            1
+          ],
+          "ft": [
+            0,
+            3
+          ]
+        }
+      },
+      "download_status": 200
+    },
+    {
+      "season": "2021-22",
+      "name": "English Premier League 2021/22",
+      "layout": "matches",
+      "matches": 380,
+      "valid_full_time_scores": 380,
+      "completed_on_or_before_as_of": 380,
+      "teams": 20,
+      "date_min": "2021-08-13",
+      "date_max": "2022-05-22",
+      "latest_completed_date": "2022-05-22",
+      "missing": {
+        "date": 0,
+        "time": 0,
+        "team1": 0,
+        "team2": 0,
+        "round": 0
+      },
+      "time_without_timezone": 380,
+      "time_with_explicit_timezone": 0,
+      "match_keys": {
+        "date": 380,
+        "round": 380,
+        "score": 380,
+        "team1": 380,
+        "team2": 380,
+        "time": 380
+      },
+      "score_keys": {
+        "ft": 380,
+        "ht": 358
+      },
+      "raw_score_formats": {
+        "object": 380
+      },
+      "duplicate_ordered_team_pairs": [],
+      "missing_ordered_team_pairs_count": 0,
+      "team_appearance_counts": {
+        "Arsenal FC": 38,
+        "Aston Villa FC": 38,
+        "Brentford FC": 38,
+        "Brighton & Hove Albion FC": 38,
+        "Burnley FC": 38,
+        "Chelsea FC": 38,
+        "Crystal Palace FC": 38,
+        "Everton FC": 38,
+        "Leeds United FC": 38,
+        "Leicester City FC": 38,
+        "Liverpool FC": 38,
+        "Manchester City FC": 38,
+        "Manchester United FC": 38,
+        "Newcastle United FC": 38,
+        "Norwich City FC": 38,
+        "Southampton FC": 38,
+        "Tottenham Hotspur FC": 38,
+        "Watford FC": 38,
+        "West Ham United FC": 38,
+        "Wolverhampton Wanderers FC": 38
+      },
+      "unscored_on_or_before_as_of": 0,
+      "unscored_after_as_of": 0,
+      "future_scored_rows": [],
+      "errors": [],
+      "structurally_complete_380_match_season": true,
+      "label_counts_data_integrity_only": {
+        "H": 163,
+        "A": 129,
+        "D": 88
+      },
+      "example_record": {
+        "round": "Matchday 1",
+        "date": "2021-08-13",
+        "time": "20:00",
+        "team1": "Brentford FC",
+        "team2": "Arsenal FC",
+        "score": {
+          "ht": [
+            1,
+            0
+          ],
+          "ft": [
+            2,
+            0
+          ]
+        }
+      },
+      "download_status": 200
+    },
+    {
+      "season": "2022-23",
+      "name": "English Premier League 2022/23",
+      "layout": "matches",
+      "matches": 380,
+      "valid_full_time_scores": 380,
+      "completed_on_or_before_as_of": 380,
+      "teams": 20,
+      "date_min": "2022-08-05",
+      "date_max": "2023-05-28",
+      "latest_completed_date": "2023-05-28",
+      "missing": {
+        "date": 0,
+        "time": 0,
+        "team1": 0,
+        "team2": 0,
+        "round": 0
+      },
+      "time_without_timezone": 380,
+      "time_with_explicit_timezone": 0,
+      "match_keys": {
+        "date": 380,
+        "round": 380,
+        "score": 380,
+        "team1": 380,
+        "team2": 380,
+        "time": 380
+      },
+      "score_keys": {
+        "ft": 380,
+        "ht": 357
+      },
+      "raw_score_formats": {
+        "object": 380
+      },
+      "duplicate_ordered_team_pairs": [],
+      "missing_ordered_team_pairs_count": 0,
+      "team_appearance_counts": {
+        "AFC Bournemouth": 38,
+        "Arsenal FC": 38,
+        "Aston Villa FC": 38,
+        "Brentford FC": 38,
+        "Brighton & Hove Albion FC": 38,
+        "Chelsea FC": 38,
+        "Crystal Palace FC": 38,
+        "Everton FC": 38,
+        "Fulham FC": 38,
+        "Leeds United FC": 38,
+        "Leicester City FC": 38,
+        "Liverpool FC": 38,
+        "Manchester City FC": 38,
+        "Manchester United FC": 38,
+        "Newcastle United FC": 38,
+        "Nottingham Forest FC": 38,
+        "Southampton FC": 38,
+        "Tottenham Hotspur FC": 38,
+        "West Ham United FC": 38,
+        "Wolverhampton Wanderers FC": 38
+      },
+      "unscored_on_or_before_as_of": 0,
+      "unscored_after_as_of": 0,
+      "future_scored_rows": [],
+      "errors": [],
+      "structurally_complete_380_match_season": true,
+      "label_counts_data_integrity_only": {
+        "A": 109,
+        "D": 87,
+        "H": 184
+      },
+      "example_record": {
+        "round": "Matchday 1",
+        "date": "2022-08-05",
+        "time": "20:00",
+        "team1": "Crystal Palace FC",
+        "team2": "Arsenal FC",
+        "score": {
+          "ht": [
+            0,
+            1
+          ],
+          "ft": [
+            0,
+            2
+          ]
+        }
+      },
+      "download_status": 200
+    },
+    {
+      "season": "2023-24",
+      "name": "English Premier League 2023/24",
+      "layout": "matches",
+      "matches": 380,
+      "valid_full_time_scores": 380,
+      "completed_on_or_before_as_of": 380,
+      "teams": 20,
+      "date_min": "2023-08-11",
+      "date_max": "2024-05-19",
+      "latest_completed_date": "2024-05-19",
+      "missing": {
+        "date": 0,
+        "time": 0,
+        "team1": 0,
+        "team2": 0,
+        "round": 0
+      },
+      "time_without_timezone": 380,
+      "time_with_explicit_timezone": 0,
+      "match_keys": {
+        "date": 380,
+        "round": 380,
+        "score": 380,
+        "team1": 380,
+        "team2": 380,
+        "time": 380
+      },
+      "score_keys": {
+        "ft": 380,
+        "ht": 369
+      },
+      "raw_score_formats": {
+        "object": 380
+      },
+      "duplicate_ordered_team_pairs": [],
+      "missing_ordered_team_pairs_count": 0,
+      "team_appearance_counts": {
+        "AFC Bournemouth": 38,
+        "Arsenal FC": 38,
+        "Aston Villa FC": 38,
+        "Brentford FC": 38,
+        "Brighton & Hove Albion FC": 38,
+        "Burnley FC": 38,
+        "Chelsea FC": 38,
+        "Crystal Palace FC": 38,
+        "Everton FC": 38,
+        "Fulham FC": 38,
+        "Liverpool FC": 38,
+        "Luton Town FC": 38,
+        "Manchester City FC": 38,
+        "Manchester United FC": 38,
+        "Newcastle United FC": 38,
+        "Nottingham Forest FC": 38,
+        "Sheffield United FC": 38,
+        "Tottenham Hotspur FC": 38,
+        "West Ham United FC": 38,
+        "Wolverhampton Wanderers FC": 38
+      },
+      "unscored_on_or_before_as_of": 0,
+      "unscored_after_as_of": 0,
+      "future_scored_rows": [],
+      "errors": [],
+      "structurally_complete_380_match_season": true,
+      "label_counts_data_integrity_only": {
+        "A": 123,
+        "H": 175,
+        "D": 82
+      },
+      "example_record": {
+        "round": "Matchday 1",
+        "date": "2023-08-11",
+        "time": "20:00",
+        "team1": "Burnley FC",
+        "team2": "Manchester City FC",
+        "score": {
+          "ht": [
+            0,
+            2
+          ],
+          "ft": [
+            0,
+            3
+          ]
+        }
+      },
+      "download_status": 200
+    },
+    {
+      "season": "2024-25",
+      "name": "English Premier League 2024/25",
+      "layout": "matches",
+      "matches": 380,
+      "valid_full_time_scores": 380,
+      "completed_on_or_before_as_of": 380,
+      "teams": 20,
+      "date_min": "2024-08-16",
+      "date_max": "2025-05-25",
+      "latest_completed_date": "2025-05-25",
+      "missing": {
+        "date": 0,
+        "time": 0,
+        "team1": 0,
+        "team2": 0,
+        "round": 0
+      },
+      "time_without_timezone": 380,
+      "time_with_explicit_timezone": 0,
+      "match_keys": {
+        "date": 380,
+        "round": 380,
+        "score": 380,
+        "team1": 380,
+        "team2": 380,
+        "time": 380
+      },
+      "score_keys": {
+        "ft": 380,
+        "ht": 364
+      },
+      "raw_score_formats": {
+        "object": 380
+      },
+      "duplicate_ordered_team_pairs": [],
+      "missing_ordered_team_pairs_count": 0,
+      "team_appearance_counts": {
+        "AFC Bournemouth": 38,
+        "Arsenal FC": 38,
+        "Aston Villa FC": 38,
+        "Brentford FC": 38,
+        "Brighton & Hove Albion FC": 38,
+        "Chelsea FC": 38,
+        "Crystal Palace FC": 38,
+        "Everton FC": 38,
+        "Fulham FC": 38,
+        "Ipswich Town FC": 38,
+        "Leicester City FC": 38,
+        "Liverpool FC": 38,
+        "Manchester City FC": 38,
+        "Manchester United FC": 38,
+        "Newcastle United FC": 38,
+        "Nottingham Forest FC": 38,
+        "Southampton FC": 38,
+        "Tottenham Hotspur FC": 38,
+        "West Ham United FC": 38,
+        "Wolverhampton Wanderers FC": 38
+      },
+      "unscored_on_or_before_as_of": 0,
+      "unscored_after_as_of": 0,
+      "future_scored_rows": [],
+      "errors": [],
+      "structurally_complete_380_match_season": true,
+      "label_counts_data_integrity_only": {
+        "H": 155,
+        "A": 132,
+        "D": 93
+      },
+      "example_record": {
+        "round": "Matchday 1",
+        "date": "2024-08-16",
+        "time": "20:00",
+        "team1": "Manchester United FC",
+        "team2": "Fulham FC",
+        "score": {
+          "ht": [
+            0,
+            0
+          ],
+          "ft": [
+            1,
+            0
+          ]
+        }
+      },
+      "download_status": 200
+    },
+    {
+      "season": "2025-26",
+      "name": "English Premier League 2025/26",
+      "layout": "matches",
+      "matches": 380,
+      "valid_full_time_scores": 380,
+      "completed_on_or_before_as_of": 380,
+      "teams": 20,
+      "date_min": "2025-08-15",
+      "date_max": "2026-05-24",
+      "latest_completed_date": "2026-05-24",
+      "missing": {
+        "date": 0,
+        "time": 0,
+        "team1": 0,
+        "team2": 0,
+        "round": 0
+      },
+      "time_without_timezone": 380,
+      "time_with_explicit_timezone": 0,
+      "match_keys": {
+        "date": 380,
+        "round": 380,
+        "score": 380,
+        "team1": 380,
+        "team2": 380,
+        "time": 380
+      },
+      "score_keys": {
+        "ft": 380,
+        "ht": 353
+      },
+      "raw_score_formats": {
+        "object": 353,
+        "bare_full_time_pair": 27
+      },
+      "duplicate_ordered_team_pairs": [],
+      "missing_ordered_team_pairs_count": 0,
+      "team_appearance_counts": {
+        "AFC Bournemouth": 38,
+        "Arsenal FC": 38,
+        "Aston Villa FC": 38,
+        "Brentford FC": 38,
+        "Brighton & Hove Albion FC": 38,
+        "Burnley FC": 38,
+        "Chelsea FC": 38,
+        "Crystal Palace FC": 38,
+        "Everton FC": 38,
+        "Fulham FC": 38,
+        "Leeds United FC": 38,
+        "Liverpool FC": 38,
+        "Manchester City FC": 38,
+        "Manchester United FC": 38,
+        "Newcastle United FC": 38,
+        "Nottingham Forest FC": 38,
+        "Sunderland AFC": 38,
+        "Tottenham Hotspur FC": 38,
+        "West Ham United FC": 38,
+        "Wolverhampton Wanderers FC": 38
+      },
+      "unscored_on_or_before_as_of": 0,
+      "unscored_after_as_of": 0,
+      "future_scored_rows": [],
+      "errors": [],
+      "structurally_complete_380_match_season": true,
+      "label_counts_data_integrity_only": "withheld: final test season",
+      "example_record": {
+        "round": "Matchday 1",
+        "date": "2025-08-15",
+        "time": "20:00",
+        "team1": "Liverpool FC",
+        "team2": "AFC Bournemouth",
+        "score": {
+          "ft": [
+            4,
+            2
+          ],
+          "ht": [
+            1,
+            0
+          ]
+        }
+      },
+      "download_status": 200
+    },
+    {
+      "season": "2026-27",
+      "name": "English Premier League 2026/27",
+      "layout": "matches",
+      "matches": 380,
+      "valid_full_time_scores": 50,
+      "completed_on_or_before_as_of": 50,
+      "teams": 20,
+      "date_min": "2026-08-21",
+      "date_max": "2027-05-30",
+      "latest_completed_date": "2026-09-20",
+      "missing": {
+        "date": 0,
+        "time": 0,
+        "team1": 0,
+        "team2": 0,
+        "round": 0
+      },
+      "time_without_timezone": 380,
+      "time_with_explicit_timezone": 0,
+      "match_keys": {
+        "date": 380,
+        "round": 380,
+        "score": 50,
+        "team1": 380,
+        "team2": 380,
+        "time": 380
+      },
+      "score_keys": {
+        "ft": 50,
+        "ht": 45
+      },
+      "raw_score_formats": {
+        "object": 45,
+        "bare_full_time_pair": 5,
+        "absent_or_null": 330
+      },
+      "duplicate_ordered_team_pairs": [],
+      "missing_ordered_team_pairs_count": 0,
+      "team_appearance_counts": {
+        "AFC Bournemouth": 38,
+        "Arsenal FC": 38,
+        "Aston Villa FC": 38,
+        "Brentford FC": 38,
+        "Brighton & Hove Albion FC": 38,
+        "Chelsea FC": 38,
+        "Coventry City FC": 38,
+        "Crystal Palace FC": 38,
+        "Everton FC": 38,
+        "Fulham FC": 38,
+        "Hull City AFC": 38,
+        "Ipswich Town FC": 38,
+        "Leeds United FC": 38,
+        "Liverpool FC": 38,
+        "Manchester City FC": 38,
+        "Manchester United FC": 38,
+        "Newcastle United FC": 38,
+        "Nottingham Forest FC": 38,
+        "Sunderland AFC": 38,
+        "Tottenham Hotspur FC": 38
+      },
+      "unscored_on_or_before_as_of": 50,
+      "unscored_after_as_of": 280,
+      "future_scored_rows": [],
+      "errors": [],
+      "structurally_complete_380_match_season": false,
+      "label_counts_data_integrity_only": {
+        "H": 18,
+        "A": 16,
+        "D": 16
+      },
+      "example_record": {
+        "round": "Matchday 1",
+        "date": "2026-08-21",
+        "time": "20:00",
+        "team1": "Arsenal FC",
+        "team2": "Coventry City FC",
+        "score": {
+          "ht": [
+            2,
+            0
+          ],
+          "ft": [
+            3,
+            0
+          ]
+        }
+      },
+      "download_status": 200
+    }
+  ],
+  "initial_modeling_seasons": [
+    "2020-21",
+    "2021-22",
+    "2022-23",
+    "2023-24",
+    "2024-25",
+    "2025-26"
+  ],
+  "scope": "Structural and availability audit only; no models fitted.",
+  "limitations": [
+    "A structurally valid result is not independently verified against an official match record.",
+    "The snapshot does not establish original publication time or historical fixture revisions.",
+    "Missing scores do not establish match status.",
+    "Times without timezone metadata are not normalized UTC timestamps.",
+    "Source name strings are not stable provider numeric IDs."
+  ]
+}

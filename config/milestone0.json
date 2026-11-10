@@ -1,0 +1,50 @@
+{
+  "as_of_date": "2026-11-09",
+  "competition": "English Premier League",
+  "source_repository": "https://github.com/openfootball/football.json",
+  "source_commit": "e6744429ee395bc86f247348c6184bb08d4eb361",
+  "source_commit_timestamp": "2026-09-22T09:33:49Z",
+  "seasons": [
+    "2015-16",
+    "2016-17",
+    "2017-18",
+    "2018-19",
+    "2019-20",
+    "2020-21",
+    "2021-22",
+    "2022-23",
+    "2023-24",
+    "2024-25",
+    "2025-26",
+    "2026-27"
+  ],
+  "initial_modeling_seasons": [
+    "2020-21",
+    "2021-22",
+    "2022-23",
+    "2023-24",
+    "2024-25",
+    "2025-26"
+  ],
+  "split": {
+    "train": [
+      "2020-21",
+      "2021-22",
+      "2022-23",
+      "2023-24"
+    ],
+    "validation": [
+      "2024-25"
+    ],
+    "test": [
+      "2025-26"
+    ]
+  },
+  "forecast_policy": {
+    "name": "matchday_calendar_v1",
+    "run_local_time": "06:00",
+    "timezone": "Europe/London",
+    "historical_eligible_latest_date_offset_days": -2,
+    "original_publication_times_available": false
+  }
+}
