@@ -1,4 +1,4 @@
-SOCCER FORECASTING
+SOCCER PREDICTION
 ==================
 
 Start with docs/MILESTONE_0_REPORT.md. The full career/project context is in docs/SOCCER_PROJECT_HANDOFF.md.
