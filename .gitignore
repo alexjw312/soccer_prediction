@@ -5,3 +5,4 @@ __pycache__/
 # Fitted models. They are rebuilt by select-model and evaluate-final, and each
 # has a metadata.json with its settings, data and package versions.
 artifacts/
+.env
