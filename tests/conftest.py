@@ -12,7 +12,7 @@ import pytest
 from psycopg import sql
 
 from soccer_forecasting import PROJECT_ROOT
-from soccer_forecasting.loading import apply_schema
+from soccer_forecasting.migrations import apply_migrations
 
 
 @pytest.fixture
@@ -25,7 +25,7 @@ def db():
         conn.execute(sql.SQL("CREATE SCHEMA {}").format(name))
         try:
             conn.execute(sql.SQL("SET search_path TO {}").format(name))
-            apply_schema(conn, PROJECT_ROOT)
+            apply_migrations(conn, PROJECT_ROOT)
             yield conn
         finally:
             conn.execute(sql.SQL("DROP SCHEMA {} CASCADE").format(name))

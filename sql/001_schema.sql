@@ -1,8 +1,9 @@
 -- Milestone 1 schema: the historical database.
 --
--- Run once against an empty database (python -m soccer_forecasting init-db).
--- There is no IF NOT EXISTS on purpose: running this over an older schema
--- should fail loudly rather than leave an out-of-date table in place.
+-- Applied once by python -m soccer_forecasting init-db, which records it in
+-- schema_migrations. There is no IF NOT EXISTS on purpose: if this file ever
+-- runs against tables that already exist, it should fail loudly rather than
+-- leave an out-of-date table in place.
 
 -- One canonical club. team_id is the stable internal identifier that every
 -- other table uses, so a provider renaming a club never changes our history.

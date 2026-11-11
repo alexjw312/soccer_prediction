@@ -22,11 +22,6 @@ class LoadSummary:
     already_present: int
 
 
-def apply_schema(conn, root: Path) -> None:
-    with conn.transaction():
-        conn.execute((root / "sql" / "001_schema.sql").read_text(encoding="utf-8"))
-
-
 def read_json(path: Path) -> dict:
     return json.loads(path.read_text(encoding="utf-8"))
 
