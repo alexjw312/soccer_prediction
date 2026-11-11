@@ -6,3 +6,4 @@ __pycache__/
 # has a metadata.json with its settings, data and package versions.
 artifacts/
 .env
+data/live/

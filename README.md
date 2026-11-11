@@ -75,6 +75,14 @@ To fetch the pinned snapshot when starting with only the script and configuratio
 
 The downloader uses the pinned commit in config/milestone0.json. It reuses verified existing files. It is not a live-update command. If a manifest already exists, all files it records must still be present and match their hashes; investigate missing or altered files rather than bypassing verification.
 
+**Download live fixtures and results (Milestone 4, step 1)**
+
+Register for a free key at football-data.org and put it in a file called .env in the project folder, as one line: FOOTBALL_DATA_API_KEY=your-key. The .env file is ignored by Git and must never be committed. Then:
+
+    python -m soccer_forecasting fetch-live
+
+This makes two requests (the free plan allows 10 a minute) and saves a snapshot of this season's Premier League matches and teams in data/live/football-data-org/<UTC time>/, with a manifest of URLs, times and hashes. Snapshots are never overwritten. They are kept out of Git because football-data.org's terms govern their data. Football data provided by the Football-Data.org API.
+
 **Files**
 
 | Path | Purpose |
@@ -116,5 +124,5 @@ The upstream license is preserved under data/raw/openfootball/<commit>/LICENSE.m
 
 **Next**
 
-Run the one-time final test when ready, then Milestone 4: scheduled fixture updates, saved predictions, an API and a dashboard.
+Milestone 4 is under way: live fixtures, saved predictions, an API and a dashboard.
 
