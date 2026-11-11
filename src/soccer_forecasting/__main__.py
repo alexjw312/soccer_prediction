@@ -11,6 +11,10 @@
   fetch-live         download this season's fixtures and results from
                      football-data.org (needs FOOTBALL_DATA_API_KEY in .env)
   load-live          load downloaded snapshots into the database, oldest first
+  train-deployment   refit the frozen model on every historical season (after the final test)
+  predict            save forecasts for today's matches (London date); --date to choose a day,
+                     --preview to show forecasts for any day without saving them
+  daily              fetch-live, load-live and predict for today, logged in job_runs
 
 DATABASE_URL can be set in the terminal or as a line in the project's .env file.
 """
@@ -25,7 +29,9 @@ from .baseline import evaluate_baseline, write_report
 from .checks import configured_live_seasons, run_checks
 from .env import load_env
 from .features import FEATURE_VERSION, build_features
+from .deployment import train_deployment
 from .final_evaluation import evaluate_final
+from .forecasting import ForecastError, forecast_day, london_date, record_job, run_daily
 from .live_loading import load_live
 from .live_source import LiveSourceError, fetch_snapshot, season_start_year
 from .model_selection import NAMES, ProtocolError, run_selection
@@ -34,7 +40,7 @@ from .migrations import MigrationError, apply_migrations
 from .parsing import SourceDataError
 
 COMMANDS = ["init-db", "load-history", "check", "build-features", "evaluate-baseline",
-            "select-model", "evaluate-final", "fetch-live", "load-live"]
+            "select-model", "evaluate-final", "fetch-live", "load-live", "train-deployment", "predict", "daily"]
 
 
 def main() -> int:
@@ -45,6 +51,8 @@ def main() -> int:
                         help="required by evaluate-final, which can only run once")
     parser.add_argument("--season", type=int,
                         help="fetch-live: season start year, e.g. 2026 for 2026/27 (default: current)")
+    parser.add_argument("--date", help="predict: match day as YYYY-MM-DD (default: today in London)")
+    parser.add_argument("--preview", action="store_true", help="predict: show forecasts without saving them")
     args = parser.parse_args()
 
     if args.command == "fetch-live":  # needs no database
@@ -142,6 +150,56 @@ def main() -> int:
                 """SELECT count(*), count(*) FILTER (WHERE status = 'completed') FROM matches
                    WHERE season = ANY(%s)""", (configured_live_seasons(PROJECT_ROOT),)).fetchone()
             print(f"Live season now holds {status[0]} fixtures, {status[1]} with results.")
+            return 0
+
+        if args.command == "train-deployment":
+            try:
+                run = train_deployment(conn, PROJECT_ROOT)
+            except (ProtocolError, RuntimeError) as error:
+                print(f"Training refused: {error}", file=sys.stderr)
+                return 1
+            state = "Trained and recorded" if run["created"] else "Already trained; reusing"
+            print(f"{state} model run {run['model_run_id']}: {NAMES[run['model']]} on "
+                  f"{run['training_matches']} matches from every historical season.")
+            return 0
+
+        if args.command in ("predict", "daily"):
+            from datetime import date, datetime, timezone
+            from .live_loading import live_config
+            zone = live_config(PROJECT_ROOT)["local_timezone"]
+            started = datetime.now(timezone.utc)
+            try:
+                if args.command == "daily":
+                    result = run_daily(conn, PROJECT_ROOT)
+                else:
+                    day = date.fromisoformat(args.date) if args.date else london_date(started, zone)
+                    try:
+                        result = forecast_day(conn, PROJECT_ROOT, day, started, save=not args.preview)
+                    except Exception as error:
+                        if not args.preview:
+                            record_job(conn, "predict", started, "failed", {"day": day, "error": str(error)})
+                        raise
+                    if not args.preview:
+                        record_job(conn, "predict", started, "succeeded",
+                                   {"day": day, "fixtures": len(result.forecasts), "inserted": result.inserted,
+                                    "model_run_id": result.model_run_id})
+            except (ForecastError, SourceDataError, LiveSourceError, ValueError) as error:
+                print(f"No forecasts saved: {error}", file=sys.stderr)
+                return 1
+            from zoneinfo import ZoneInfo
+            mode = "Preview, not saved" if args.preview else "Forecasts"
+            model = f", model run {result.model_run_id}" if result.model_run_id else ""
+            print(f"{mode} for {result.day:%a %d %b %Y} (London){model}:")
+            for warning in result.warnings:
+                print(f"  Warning: {warning}")
+            if not result.forecasts:
+                print("  No matches left to forecast on this day.")
+            for f in result.forecasts:
+                local = f.kickoff_utc.astimezone(ZoneInfo(zone))
+                print(f"  {local:%H:%M}  {f.home + ' v ' + f.away:<44} home {f.p_home:5.1%}  "
+                      f"draw {f.p_draw:5.1%}  away {f.p_away:5.1%}")
+            if not args.preview and result.forecasts:
+                print(f"Saved {result.inserted} new forecasts; {result.already_saved} were already saved.")
             return 0
 
         if args.command == "select-model":

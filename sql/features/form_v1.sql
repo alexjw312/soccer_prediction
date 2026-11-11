@@ -1,8 +1,17 @@
 -- Feature version form_v1: each team's recent form entering a fixture.
 -- Returns two rows per fixture, one for each side.
--- Parameters: offset_days, the cutoff relative to match day (-2 in config);
--- seasons, the fixtures to compute features for. History from any season
--- can count, but only if it is dated on or before the cutoff.
+-- Parameters:
+--   offset_days  the cutoff relative to match day (-2 in config);
+--   seasons      compute features for every fixture in these seasons;
+--   match_ids    and/or for these fixtures;
+--   as_of        a live result counts only if it had been downloaded by this
+--                time. Historical results have no download time and always
+--                count; the two-day rule is their stated assumption. Saved
+--                historical features use 'infinity'; live forecasts use the
+--                moment the forecast is made.
+-- History from any season can count, but only if it is dated on or before
+-- the cutoff and was known by as_of. The same query serves the historical
+-- backtest and live forecasts, so the two cannot drift apart.
 --
 -- Step 1, team_form: a window function. For every completed match a team
 -- played, it averages that match together with the ones just before it.
@@ -19,7 +28,13 @@
 -- row? That skips the fixture but would still count a match played the day
 -- before, which the two-day rule excludes. It also has no row to start from
 -- for a fixture that has not been played yet, and live forecasts need that.
-WITH team_form AS MATERIALIZED (
+WITH known_results AS MATERIALIZED (
+    SELECT tm.*
+    FROM team_matches tm
+    LEFT JOIN result_first_seen seen USING (match_id)
+    WHERE seen.first_seen_utc IS NULL OR seen.first_seen_utc <= %(as_of)s::timestamptz
+),
+team_form AS MATERIALIZED (
     -- MATERIALIZED computes this once; otherwise PostgreSQL may redo the
     -- window calculation for every fixture in the LATERAL join below.
     SELECT team_id, match_id, match_date,
@@ -31,7 +46,7 @@ WITH team_form AS MATERIALIZED (
            (avg(points)        OVER last10)::double precision AS ppg_last10,
            (avg(goals_for)     OVER last10)::double precision AS goals_for_last10,
            (avg(goals_against) OVER last10)::double precision AS goals_against_last10
-    FROM team_matches
+    FROM known_results
     WINDOW last5  AS (PARTITION BY team_id ORDER BY match_date, match_id
                       ROWS BETWEEN 4 PRECEDING AND CURRENT ROW),
            last10 AS (PARTITION BY team_id ORDER BY match_date, match_id
@@ -40,11 +55,11 @@ WITH team_form AS MATERIALIZED (
 fixture_sides AS (
     SELECT match_id, 'H' AS venue, home_team_id AS team_id,
            match_date + %(offset_days)s::integer AS feature_cutoff_date
-    FROM matches WHERE season = ANY(%(seasons)s::text[])
+    FROM matches WHERE season = ANY(%(seasons)s::text[]) OR match_id = ANY(%(match_ids)s::integer[])
     UNION ALL
     SELECT match_id, 'A', away_team_id,
            match_date + %(offset_days)s::integer
-    FROM matches WHERE season = ANY(%(seasons)s::text[])
+    FROM matches WHERE season = ANY(%(seasons)s::text[]) OR match_id = ANY(%(match_ids)s::integer[])
 )
 SELECT s.match_id, s.venue, s.team_id, s.feature_cutoff_date,
        f.match_date             AS latest_history_date,

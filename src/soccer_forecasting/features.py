@@ -43,13 +43,20 @@ def cohort_seasons(root: Path) -> list[str]:
     return read_json(root / "config" / "milestone0.json")["initial_modeling_seasons"]
 
 
-def compute_form(conn, root: Path, offset_days: int | None = None, seasons: list[str] | None = None) -> list[dict]:
-    """Run the feature query and return its rows without saving anything."""
+def compute_form(conn, root: Path, offset_days: int | None = None, seasons: list[str] | None = None,
+                 match_ids: list[int] | None = None, as_of="infinity") -> list[dict]:
+    """Run the feature query and return its rows without saving anything.
+
+    With neither seasons nor match_ids, it covers the historical cohort.
+    as_of limits live results to those downloaded by then (see form_v1.sql).
+    """
     if offset_days is None:
         offset_days = cutoff_offset_days(root)
+    if seasons is None and match_ids is None:
+        seasons = cohort_seasons(root)
+    params = {"offset_days": offset_days, "seasons": seasons or [], "match_ids": match_ids or [], "as_of": as_of}
     with conn.cursor(row_factory=dict_row) as cur:
-        return cur.execute(feature_sql(root), {"offset_days": offset_days,
-                                               "seasons": seasons or cohort_seasons(root)}).fetchall()
+        return cur.execute(feature_sql(root), params).fetchall()
 
 
 def build_features(conn, root: Path) -> FeatureSummary:
@@ -60,14 +67,14 @@ def build_features(conn, root: Path) -> FeatureSummary:
     """
     offset = cutoff_offset_days(root)
     columns = ", ".join(FEATURE_COLUMNS)
-    params = {"version": FEATURE_VERSION, "offset_days": offset, "seasons": cohort_seasons(root)}
+    params = {"version": FEATURE_VERSION, "offset_days": offset, "seasons": cohort_seasons(root),
+              "match_ids": [], "as_of": "infinity"}
 
     with conn.transaction():
         conn.execute(f"""CREATE TEMP TABLE computed_form ON COMMIT DROP AS
                          SELECT match_id, venue, {columns}
                          FROM team_form_snapshots WITH NO DATA""")
-        conn.execute(f"INSERT INTO computed_form (match_id, venue, {columns}) {feature_sql(root)}",
-                     {"offset_days": offset, "seasons": params["seasons"]})
+        conn.execute(f"INSERT INTO computed_form (match_id, venue, {columns}) {feature_sql(root)}", params)
 
         changed = conn.execute(
             f"""SELECT c.match_id, c.venue

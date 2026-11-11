@@ -92,6 +92,27 @@ init-db applies 003_live.sql. load-live loads every snapshot not yet loaded, old
 
 Live fixtures never get features from build-features, which covers only the historical seasons. They get their features at forecast time, from results already downloaded by then.
 
+**Forecast real matches (Milestone 4, step 3)**
+
+    python -m soccer_forecasting init-db
+    python -m soccer_forecasting train-deployment
+    python -m soccer_forecasting predict --preview --date 2026-11-21
+
+init-db applies 004_predictions.sql. train-deployment refits the frozen model with its frozen settings on every historical season. It is refused until the one-time final test has run, because it trains on the test season, and it is recorded in model_runs as a separate training run from the evaluated one. Running it again reuses the recorded model.
+
+predict --preview shows forecasts for any day without saving them. On match day, run:
+
+    python -m soccer_forecasting daily
+
+daily downloads fresh data, loads it, and saves forecasts for that day's remaining matches (London date). A saved forecast:
+
+- is made on match day, before kickoff (the database refuses one made at or after kickoff);
+- uses form from matches dated at least two days earlier, and only results that had been downloaded before the forecast was made, through the same form_v1 query as the historical features;
+- needs a download from the last 30 hours, and no earlier fixture still missing its result;
+- is never changed: running again the same day adds nothing, and if a match moves to another day a new forecast is added for the new day.
+
+Every daily or predict run is logged in job_runs, including failures. prediction_results shows each forecast next to the result and its log loss once the match is played.
+
 **Files**
 
 | Path | Purpose |
@@ -101,6 +122,7 @@ Live fixtures never get features from build-features, which covers only the hist
 | sql/001_schema.sql | Milestone 1 tables, constraints and the team_matches view, with the reasoning in comments |
 | sql/002_features.sql | team_form_snapshots table and the fixture_features view |
 | sql/003_live.sql | kickoff_utc, provider_matches, match_observations and the result_first_seen view |
+| sql/004_predictions.sql | model_runs, predictions, the prediction_results view and job_runs |
 | config/live.json | Live season, provider and how provider statuses map to ours |
 | sql/features/form_v1.sql | The feature query: window functions plus an as-of join at the cutoff |
 | sql/checks/ | Post-load checks; each query returns the rows that break a rule |

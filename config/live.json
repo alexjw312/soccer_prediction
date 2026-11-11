@@ -14,5 +14,7 @@
     "SUSPENDED": "abandoned",
     "CANCELLED": "canceled"
   },
-  "note": "Statuses not listed here, such as AWARDED, stop the load so a person can decide how to record them. IN_PLAY and PAUSED count as not yet completed, so partial scores are never stored."
+  "note": "Statuses not listed here, such as AWARDED, stop the load so a person can decide how to record them. IN_PLAY and PAUSED count as not yet completed, so partial scores are never stored.",
+  "max_snapshot_age_hours": 30,
+  "note_freshness": "A saved forecast needs a snapshot downloaded within max_snapshot_age_hours of the forecast, and no live fixture dated on or before the feature cutoff may still lack its result."
 }
