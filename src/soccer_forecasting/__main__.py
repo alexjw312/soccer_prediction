@@ -5,6 +5,9 @@
   check              run the post-load data checks
   build-features     compute and save team-form features (form_v1)
   evaluate-baseline  score the class-frequency baseline on the validation season
+  select-model       tune, compare and choose a model on validation (config/milestone3.json)
+  evaluate-final     score the frozen choice once on the final test season;
+                     needs --confirm-final-test and refuses a second run
 """
 import argparse
 import os
@@ -16,17 +19,22 @@ from . import PROJECT_ROOT
 from .baseline import evaluate_baseline, write_report
 from .checks import run_checks
 from .features import FEATURE_VERSION, build_features
+from .final_evaluation import evaluate_final
+from .model_selection import NAMES, ProtocolError, run_selection
 from .loading import load_history, read_json
 from .migrations import MigrationError, apply_migrations
 from .parsing import SourceDataError
 
-COMMANDS = ["init-db", "load-history", "check", "build-features", "evaluate-baseline"]
+COMMANDS = ["init-db", "load-history", "check", "build-features", "evaluate-baseline",
+            "select-model", "evaluate-final"]
 
 
 def main() -> int:
     parser = argparse.ArgumentParser(prog="python -m soccer_forecasting", description=__doc__,
                                      formatter_class=argparse.RawDescriptionHelpFormatter)
     parser.add_argument("command", choices=COMMANDS)
+    parser.add_argument("--confirm-final-test", action="store_true",
+                        help="required by evaluate-final, which can only run once")
     args = parser.parse_args()
 
     url = os.environ.get("DATABASE_URL")
@@ -70,7 +78,8 @@ def main() -> int:
                   f"{summary.already_present} already present.")
             print(f"Sides with no earlier match: {summary.sides_without_history}. "
                   f"Sides with fewer than 5: {summary.sides_with_fewer_than_5}. "
-                  f"These keep missing values; Milestone 3 decides how to fill them.")
+                  f"These stay missing in the database; logistic regression fills them with training "
+                  f"means and XGBoost handles them directly.")
             return 0
 
         if args.command == "evaluate-baseline":
@@ -84,6 +93,34 @@ def main() -> int:
                   f"{v['log_loss']:.4f} (95% interval {v['log_loss_95ci'][0]:.4f}–{v['log_loss_95ci'][1]:.4f})")
             print(f"Reference, one third each: {u['log_loss']:.4f}")
             print(f"Report written to {md_path.relative_to(PROJECT_ROOT)}")
+            return 0
+
+        if args.command == "select-model":
+            try:
+                result = run_selection(conn, PROJECT_ROOT)
+            except (ProtocolError, RuntimeError) as error:
+                print(f"Model selection refused: {error}", file=sys.stderr)
+                return 1
+            scores, v = result["scores"], result["validation"]
+            print(f"Validation {', '.join(v['seasons'])} ({v['matches']} matches), log loss, lower is better:")
+            for name, score in scores.items():
+                vs = score.get("vs_baseline")
+                extra = (f"  versus baseline {vs['mean']:+.4f} "
+                         f"({vs['interval'][0]:+.4f} to {vs['interval'][1]:+.4f})") if vs else ""
+                print(f"  {NAMES[name]:<25} {score['log_loss']:.4f}{extra}")
+            print(f"Selected: {NAMES[result['selection']['selected']]}. "
+                  f"Frozen in reports/frozen_selection.json; details in reports/model_validation.md")
+            return 0
+
+        if args.command == "evaluate-final":
+            try:
+                result = evaluate_final(conn, PROJECT_ROOT, confirm=args.confirm_final_test)
+            except (ProtocolError, RuntimeError) as error:
+                print(f"Final test refused: {error}", file=sys.stderr)
+                return 1
+            for name, score in result["scores"].items():
+                print(f"  {NAMES[name]:<25} test log loss {score['log_loss']:.4f}")
+            print("Report written to reports/final_test.md. Selection is now closed.")
             return 0
 
         seasons = read_json(PROJECT_ROOT / "config" / "milestone0.json")["initial_modeling_seasons"]

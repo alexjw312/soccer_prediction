@@ -1,0 +1,24 @@
+{
+  "selected_model": "logistic_regression",
+  "settings": {
+    "max_iter": 5000,
+    "C": 0.03
+  },
+  "selected_at_utc": "2026-11-10T19:30:48+00:00",
+  "feature_version": "form_v1",
+  "protocol_sha256": "80e861f5f16c04924dc9887184ff7d9bb97a969b7319f9cebb52be7ba64de0aa",
+  "split_sha256": "e4c579818a8bcd0674289d91c827a20f64914b2010bf6ea8b564ff150798559c",
+  "final_fit_seasons": [
+    "2020-21",
+    "2021-22",
+    "2022-23",
+    "2023-24",
+    "2024-25"
+  ],
+  "final_fit_data_fingerprint": "4436d4c31f28605870d3938bf4549adceb4011ef12cd93c86588d8a4761a4f69",
+  "test_seasons": [
+    "2025-26"
+  ],
+  "random_seed": 20261110,
+  "baseline_settings": {}
+}

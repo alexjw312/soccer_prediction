@@ -7,7 +7,18 @@ name = "soccer-forecasting"
 version = "0.1.0"
 description = "Premier League match forecasting service"
 requires-python = ">=3.10"
-dependencies = ["psycopg[binary]==3.3.8"]
+dependencies = [
+    "psycopg[binary]==3.3.8",
+    "numpy==2.5.4",
+    "scipy==1.18.1",
+    "scikit-learn==1.9.1",
+    "joblib==1.6.0",
+    # The same library under two names. On Linux the plain package pulls in
+    # large GPU libraries, so the CPU-only build is used there. On macOS it
+    # needs OpenMP from Homebrew: brew install libomp
+    "xgboost==3.4.1; sys_platform != 'linux'",
+    "xgboost-cpu==3.4.1; sys_platform == 'linux'",
+]
 
 [project.optional-dependencies]
 dev = ["pytest==9.2.0"]

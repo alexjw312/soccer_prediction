@@ -1,0 +1,43 @@
+{
+  "written": "2026-11-10, before any Milestone 3 model was scored",
+  "feature_version": "form_v1",
+  "class_order": ["H", "D", "A"],
+  "random_seed": 20261110,
+  "tuning": {
+    "method": "expanding season folds inside the training seasons; the validation season is not used for tuning",
+    "folds": [
+      {"train": ["2020-21"], "evaluate": "2021-22"},
+      {"train": ["2020-21", "2021-22"], "evaluate": "2022-23"},
+      {"train": ["2020-21", "2021-22", "2022-23"], "evaluate": "2023-24"}
+    ],
+    "score": "mean multiclass log loss over the three folds; the lowest wins"
+  },
+  "candidates": {
+    "logistic_regression": {
+      "grid": {"C": [0.001, 0.003, 0.01, 0.03, 0.1, 0.3, 1.0, 3.0]},
+      "fixed": {"max_iter": 5000},
+      "preprocessing": "mean imputation then standardization, both fitted on the training rows only"
+    },
+    "xgboost": {
+      "grid": {"max_depth": [1, 2, 3], "n_estimators": [100, 300, 600]},
+      "fixed": {"learning_rate": 0.03, "subsample": 0.8, "colsample_bytree": 0.8,
+                "min_child_weight": 5, "reg_lambda": 1.0, "tree_method": "hist", "n_jobs": 1},
+      "preprocessing": "none; missing values are handled by the trees"
+    }
+  },
+  "selection": {
+    "order": ["class_frequency_baseline", "logistic_regression", "xgboost"],
+    "rule": "Start with the baseline as the choice. Take each more complex candidate in order. It replaces the current choice only if the 95% paired bootstrap interval for (candidate minus current choice) validation log loss lies entirely below zero. Otherwise the simpler model stays.",
+    "validation_seasons_from": "config/milestone0.json split.validation",
+    "primary_training_seasons_from": "config/milestone0.json split.train",
+    "sensitivity_only": "Refit without 2020-21 and report the validation score. It is not used for selection."
+  },
+  "bootstrap": {"reps": 2000, "seed": 20261110, "interval": 0.95,
+                "method": "percentile; resample validation matches with replacement, paired across models"},
+  "final_test": {
+    "seasons_from": "config/milestone0.json split.test",
+    "fit_seasons": "training plus validation seasons, with the frozen settings",
+    "reported": ["the selected model", "class_frequency_baseline", "one third each as a reference"],
+    "runs": "once; a second run is refused"
+  }
+}
