@@ -39,25 +39,35 @@ def feature_sql(root: Path) -> str:
     return (root / "sql" / "features" / f"{FEATURE_VERSION}.sql").read_text(encoding="utf-8")
 
 
-def compute_form(conn, root: Path, offset_days: int | None = None) -> list[dict]:
+def cohort_seasons(root: Path) -> list[str]:
+    return read_json(root / "config" / "milestone0.json")["initial_modeling_seasons"]
+
+
+def compute_form(conn, root: Path, offset_days: int | None = None, seasons: list[str] | None = None) -> list[dict]:
     """Run the feature query and return its rows without saving anything."""
     if offset_days is None:
         offset_days = cutoff_offset_days(root)
     with conn.cursor(row_factory=dict_row) as cur:
-        return cur.execute(feature_sql(root), {"offset_days": offset_days}).fetchall()
+        return cur.execute(feature_sql(root), {"offset_days": offset_days,
+                                               "seasons": seasons or cohort_seasons(root)}).fetchall()
 
 
 def build_features(conn, root: Path) -> FeatureSummary:
+    """Save features for the historical seasons only.
+
+    Live fixtures get their features at forecast time instead, from results
+    already downloaded by then, so they are never built here.
+    """
     offset = cutoff_offset_days(root)
     columns = ", ".join(FEATURE_COLUMNS)
-    params = {"version": FEATURE_VERSION, "offset_days": offset}
+    params = {"version": FEATURE_VERSION, "offset_days": offset, "seasons": cohort_seasons(root)}
 
     with conn.transaction():
         conn.execute(f"""CREATE TEMP TABLE computed_form ON COMMIT DROP AS
                          SELECT match_id, venue, {columns}
                          FROM team_form_snapshots WITH NO DATA""")
         conn.execute(f"INSERT INTO computed_form (match_id, venue, {columns}) {feature_sql(root)}",
-                     {"offset_days": offset})
+                     {"offset_days": offset, "seasons": params["seasons"]})
 
         changed = conn.execute(
             f"""SELECT c.match_id, c.venue
@@ -79,13 +89,14 @@ def build_features(conn, root: Path) -> FeatureSummary:
 
         problems = conn.execute(
             """SELECT count(*) FROM matches m
-               WHERE (SELECT count(*) FROM team_form_snapshots s
+               WHERE m.season = ANY(%(seasons)s::text[])
+                 AND ((SELECT count(*) FROM team_form_snapshots s
                       WHERE s.match_id = m.match_id AND s.feature_version = %(version)s) <> 2
                   OR EXISTS (SELECT 1 FROM team_form_snapshots s
                              WHERE s.match_id = m.match_id AND s.feature_version = %(version)s
                                AND (s.feature_cutoff_date <> m.match_date + %(offset_days)s::integer
                                     OR s.team_id <> CASE s.venue WHEN 'H' THEN m.home_team_id
-                                                                 ELSE m.away_team_id END))""",
+                                                                 ELSE m.away_team_id END)))""",
             params).fetchone()[0]
         if problems:
             raise SourceDataError(f"{problems} fixtures have missing or inconsistent features, nothing was saved")

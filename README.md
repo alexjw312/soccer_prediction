@@ -19,7 +19,7 @@ If you have Docker, this starts a local PostgreSQL server:
 
     docker run --name soccer-pg -e POSTGRES_USER=soccer -e POSTGRES_PASSWORD=dev -e POSTGRES_DB=soccer -p 5432:5432 -d postgres:16
 
-Then create the tables, load the six seasons, and run the data checks:
+Then create the tables, load the six seasons, and run the data checks. Instead of the export line, you can put DATABASE_URL=... (and TEST_DATABASE_URL=...) in the project's .env file once; a value set in the terminal wins.
 
     export DATABASE_URL=postgresql://soccer:dev@localhost:5432/soccer
     python -m soccer_forecasting init-db
@@ -83,6 +83,15 @@ Register for a free key at football-data.org and put it in a file called .env in
 
 This makes two requests (the free plan allows 10 a minute) and saves a snapshot of this season's Premier League matches and teams in data/live/football-data-org/<UTC time>/, with a manifest of URLs, times and hashes. Snapshots are never overwritten. They are kept out of Git because football-data.org's terms govern their data. Football data provided by the Football-Data.org API.
 
+**Load live snapshots into the database (Milestone 4, step 2)**
+
+    python -m soccer_forecasting init-db
+    python -m soccer_forecasting load-live
+
+init-db applies 003_live.sql. load-live loads every snapshot not yet loaded, oldest first, each in its own transaction. New fixtures are inserted and tied to their football-data.org id. Fixtures not yet played take the newest date, kickoff and status. A completed result never changes afterwards; a different score stops the load for a person to check. Every fixture's state in every snapshot is kept in match_observations, and the result_first_seen view gives the time each result was first downloaded, which live forecasts will use as their cutoff. Unknown teams, unknown statuses, changed files and out-of-order snapshots stop the load. Match dates are London dates of the UTC kickoff.
+
+Live fixtures never get features from build-features, which covers only the historical seasons. They get their features at forecast time, from results already downloaded by then.
+
 **Files**
 
 | Path | Purpose |
@@ -91,6 +100,8 @@ This makes two requests (the free plan allows 10 a minute) and saves a snapshot 
 | config/team_aliases.csv | Maps each provider's team name to one canonical team |
 | sql/001_schema.sql | Milestone 1 tables, constraints and the team_matches view, with the reasoning in comments |
 | sql/002_features.sql | team_form_snapshots table and the fixture_features view |
+| sql/003_live.sql | kickoff_utc, provider_matches, match_observations and the result_first_seen view |
+| config/live.json | Live season, provider and how provider statuses map to ours |
 | sql/features/form_v1.sql | The feature query: window functions plus an as-of join at the cutoff |
 | sql/checks/ | Post-load checks; each query returns the rows that break a rule |
 | src/soccer_forecasting/ | Parser, loader, checks, migrations, features, baseline and command line |

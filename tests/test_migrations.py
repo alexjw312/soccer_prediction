@@ -19,15 +19,16 @@ def test_running_again_applies_nothing(db):
 
 
 def test_milestone_1_database_is_upgraded_without_reloading(db):
-    # Rebuild the test schema the way Milestone 1 did: 001 only, no migrations table.
-    for name in ("fixture_features", "team_form_snapshots"):
-        db.execute(f"DROP {'VIEW' if name == 'fixture_features' else 'TABLE'} {name}")
-    db.execute("DROP TABLE schema_migrations")
+    # Load the history, then strip the schema back to Milestone 1: 001 only, no migrations table.
     load_history(db, PROJECT_ROOT)
+    for statement in ("DROP VIEW result_first_seen", "DROP TABLE match_observations", "DROP TABLE provider_matches",
+                      "ALTER TABLE matches DROP COLUMN kickoff_utc",
+                      "DROP VIEW fixture_features", "DROP TABLE team_form_snapshots", "DROP TABLE schema_migrations"):
+        db.execute(statement)
 
     result = apply_migrations(db, PROJECT_ROOT)
 
-    assert result == {"adopted": ["001_schema"], "applied": ["002_features"]}
+    assert result == {"adopted": ["001_schema"], "applied": ["002_features", "003_live"]}
     assert db.execute("SELECT count(*) FROM matches").fetchone()[0] == 2280
     assert db.execute("SELECT to_regclass('team_form_snapshots')").fetchone()[0] is not None
 

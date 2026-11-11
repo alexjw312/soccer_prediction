@@ -34,9 +34,14 @@ class FakeApi(BaseHTTPRequestHandler):
         pass
 
 
-@pytest.fixture
-def api(monkeypatch):
+@pytest.fixture(autouse=True)
+def no_real_key(monkeypatch):
+    # A real key in the terminal must never reach these tests or their messages.
     monkeypatch.delenv("FOOTBALL_DATA_API_KEY", raising=False)
+
+
+@pytest.fixture
+def api():
     FakeApi.status = 200
     FakeApi.bodies = {"matches": json.dumps(MATCHES).encode(), "teams": json.dumps(TEAMS).encode()}
     FakeApi.seen = []

@@ -10,6 +10,9 @@
                      needs --confirm-final-test and refuses a second run
   fetch-live         download this season's fixtures and results from
                      football-data.org (needs FOOTBALL_DATA_API_KEY in .env)
+  load-live          load downloaded snapshots into the database, oldest first
+
+DATABASE_URL can be set in the terminal or as a line in the project's .env file.
 """
 import argparse
 import os
@@ -19,9 +22,11 @@ import psycopg
 
 from . import PROJECT_ROOT
 from .baseline import evaluate_baseline, write_report
-from .checks import run_checks
+from .checks import configured_live_seasons, run_checks
+from .env import load_env
 from .features import FEATURE_VERSION, build_features
 from .final_evaluation import evaluate_final
+from .live_loading import load_live
 from .live_source import LiveSourceError, fetch_snapshot, season_start_year
 from .model_selection import NAMES, ProtocolError, run_selection
 from .loading import load_history, read_json
@@ -29,7 +34,7 @@ from .migrations import MigrationError, apply_migrations
 from .parsing import SourceDataError
 
 COMMANDS = ["init-db", "load-history", "check", "build-features", "evaluate-baseline",
-            "select-model", "evaluate-final", "fetch-live"]
+            "select-model", "evaluate-final", "fetch-live", "load-live"]
 
 
 def main() -> int:
@@ -59,10 +64,11 @@ def main() -> int:
             print(f"Requests left this minute: {remaining}")
         return 0
 
+    load_env(PROJECT_ROOT, ("DATABASE_URL",))
     url = os.environ.get("DATABASE_URL")
     if not url:
-        parser.error("set DATABASE_URL first, for example "
-                     "postgresql://soccer:dev@localhost:5432/soccer")
+        parser.error("set DATABASE_URL in the terminal or in .env, for example "
+                     "DATABASE_URL=postgresql://soccer:dev@localhost:5432/soccer")
 
     with psycopg.connect(url, autocommit=True) as conn:
         if args.command == "init-db":
@@ -115,6 +121,27 @@ def main() -> int:
                   f"{v['log_loss']:.4f} (95% interval {v['log_loss_95ci'][0]:.4f}–{v['log_loss_95ci'][1]:.4f})")
             print(f"Reference, one third each: {u['log_loss']:.4f}")
             print(f"Report written to {md_path.relative_to(PROJECT_ROOT)}")
+            return 0
+
+        if args.command == "load-live":
+            try:
+                summaries = load_live(conn, PROJECT_ROOT)
+            except SourceDataError as error:
+                print(f"Live load stopped; earlier snapshots stay loaded, this one saved nothing: {error}",
+                      file=sys.stderr)
+                return 1
+            if not summaries:
+                print("No snapshots found. Run fetch-live first.")
+            for s in summaries:
+                if not s.loaded:
+                    print(f"{s.snapshot}: already loaded")
+                    continue
+                print(f"{s.snapshot}: {s.fixtures} fixtures; {s.inserted} new, {s.newly_completed} newly completed, "
+                      f"{s.rescheduled} rescheduled, {s.other_updates} other changes")
+            status = conn.execute(
+                """SELECT count(*), count(*) FILTER (WHERE status = 'completed') FROM matches
+                   WHERE season = ANY(%s)""", (configured_live_seasons(PROJECT_ROOT),)).fetchone()
+            print(f"Live season now holds {status[0]} fixtures, {status[1]} with results.")
             return 0
 
         if args.command == "select-model":

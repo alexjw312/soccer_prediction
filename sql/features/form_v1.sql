@@ -1,6 +1,8 @@
 -- Feature version form_v1: each team's recent form entering a fixture.
 -- Returns two rows per fixture, one for each side.
--- Parameter: offset_days, the cutoff relative to match day (-2 in config).
+-- Parameters: offset_days, the cutoff relative to match day (-2 in config);
+-- seasons, the fixtures to compute features for. History from any season
+-- can count, but only if it is dated on or before the cutoff.
 --
 -- Step 1, team_form: a window function. For every completed match a team
 -- played, it averages that match together with the ones just before it.
@@ -38,11 +40,11 @@ WITH team_form AS MATERIALIZED (
 fixture_sides AS (
     SELECT match_id, 'H' AS venue, home_team_id AS team_id,
            match_date + %(offset_days)s::integer AS feature_cutoff_date
-    FROM matches
+    FROM matches WHERE season = ANY(%(seasons)s::text[])
     UNION ALL
     SELECT match_id, 'A', away_team_id,
            match_date + %(offset_days)s::integer
-    FROM matches
+    FROM matches WHERE season = ANY(%(seasons)s::text[])
 )
 SELECT s.match_id, s.venue, s.team_id, s.feature_cutoff_date,
        f.match_date             AS latest_history_date,

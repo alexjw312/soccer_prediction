@@ -1,0 +1,18 @@
+{
+  "provider": "football-data.org",
+  "api_competition": "PL",
+  "season": "2026-27",
+  "season_start_year": 2026,
+  "local_timezone": "Europe/London",
+  "status_map": {
+    "FINISHED": "completed",
+    "SCHEDULED": "scheduled",
+    "TIMED": "scheduled",
+    "IN_PLAY": "scheduled",
+    "PAUSED": "scheduled",
+    "POSTPONED": "postponed",
+    "SUSPENDED": "abandoned",
+    "CANCELLED": "canceled"
+  },
+  "note": "Statuses not listed here, such as AWARDED, stop the load so a person can decide how to record them. IN_PLAY and PAUSED count as not yet completed, so partial scores are never stored."
+}
