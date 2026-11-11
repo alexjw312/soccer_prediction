@@ -4,7 +4,7 @@
     "max_iter": 5000,
     "C": 0.03
   },
-  "selected_at_utc": "2026-11-10T19:30:48+00:00",
+  "selected_at_utc": "2026-11-11T03:49:58+00:00",
   "feature_version": "form_v1",
   "protocol_sha256": "80e861f5f16c04924dc9887184ff7d9bb97a969b7319f9cebb52be7ba64de0aa",
   "split_sha256": "e4c579818a8bcd0674289d91c827a20f64914b2010bf6ea8b564ff150798559c",

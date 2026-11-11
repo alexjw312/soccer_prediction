@@ -1,7 +1,7 @@
 Model selection — validation report
 ===================================
 
-Generated 2026-11-10T19:30:48+00:00 from OpenFootball commit e6744429ee395bc86f247348c6184bb08d4eb361.
+Generated 2026-11-11T03:49:58+00:00 from OpenFootball commit e6744429ee395bc86f247348c6184bb08d4eb361.
 Protocol: config/milestone3.json (sha256 80e861f5f16c…), written before any model was scored.
 The final test season (2025-26) was not used.
 
@@ -13,14 +13,14 @@ Log loss: lower is better; one third each scores 1.0986. Ranges are 95% bootstra
 | --- | --- | ---: | ---: | ---: | ---: |
 | Class-frequency baseline | none | 1.0657 | 1.0797 (1.0529 to 1.1056) | — | 40.8% |
 | Logistic regression | C=0.03 | 1.0020 | 1.0294 (0.9848 to 1.0709) | -0.0503 (-0.0815 to -0.0195) | 50.8% |
-| XGBoost | max_depth=2, n_estimators=100 | 1.0178 | 1.0398 (0.9981 to 1.0778) | -0.0399 (-0.0671 to -0.0142) | 49.5% |
+| XGBoost | max_depth=2, n_estimators=100 | 1.0173 | 1.0392 (0.9971 to 1.0782) | -0.0405 (-0.0674 to -0.0143) | 49.5% |
 
 **Selection, applying the declared rule**
 
 Rule: Start with the baseline as the choice. Take each more complex candidate in order. It replaces the current choice only if the 95% paired bootstrap interval for (candidate minus current choice) validation log loss lies entirely below zero. Otherwise the simpler model stays.
 
 - Logistic regression versus Class-frequency baseline: -0.0503 (-0.0815 to -0.0195), so it replaces it.
-- XGBoost versus Logistic regression: +0.0104 (-0.0049 to +0.0247), so it does not replace it.
+- XGBoost versus Logistic regression: +0.0098 (-0.0047 to +0.0243), so it does not replace it.
 
 **Selected: Logistic regression**, frozen in reports/frozen_selection.json.
 
@@ -30,7 +30,7 @@ Rule: Start with the baseline as the choice. Take each more complex candidate in
 | --- | ---: | ---: | ---: | ---: | ---: |
 | Class-frequency baseline | 22.4% | 24.5% | 0 | 1.4975 | 0.9443 |
 | Logistic regression | 22.9% | 24.5% | 0 | 1.4906 | 0.8800 |
-| XGBoost | 22.5% | 24.5% | 0 | 1.5041 | 0.8894 |
+| XGBoost | 22.5% | 24.5% | 0 | 1.5028 | 0.8890 |
 
 Draws are rarely the single most likely outcome, so accuracy hides how a model handles them;
 log loss still rewards giving draws a sensible probability.
@@ -41,7 +41,7 @@ log loss still rewards giving draws a sensible probability.
 | --- | ---: | ---: |
 | Class-frequency baseline | 1.2804 (5 matches) | 1.0770 (375 matches) |
 | Logistic regression | 1.0509 (5 matches) | 1.0291 (375 matches) |
-| XGBoost | 1.0615 (5 matches) | 1.0395 (375 matches) |
+| XGBoost | 1.0748 (5 matches) | 1.0387 (375 matches) |
 
 The short-history group is small, so differences there are weak evidence.
 
@@ -116,7 +116,7 @@ so read the signs and rough sizes, not individual values.
 | Model | Validation log loss, all four seasons | Without 2020-21 |
 | --- | ---: | ---: |
 | Logistic regression | 1.0294 | 1.0237 |
-| XGBoost | 1.0398 | 1.0438 |
+| XGBoost | 1.0392 | 1.0432 |
 
 **Tuning detail**
 
@@ -137,12 +137,12 @@ XGBoost: mean log loss over the three training folds for each setting.
 
 | Settings | Mean fold log loss |
 | --- | ---: |
-| max_depth=1, n_estimators=100 | 1.0248 |
-| max_depth=1, n_estimators=300 | 1.0181 |
-| max_depth=1, n_estimators=600 | 1.0245 |
-| max_depth=2, n_estimators=100 | 1.0178 ← chosen |
-| max_depth=2, n_estimators=300 | 1.0335 |
-| max_depth=2, n_estimators=600 | 1.0644 |
-| max_depth=3, n_estimators=100 | 1.0205 |
-| max_depth=3, n_estimators=300 | 1.0529 |
-| max_depth=3, n_estimators=600 | 1.1048 |
+| max_depth=1, n_estimators=100 | 1.0249 |
+| max_depth=1, n_estimators=300 | 1.0185 |
+| max_depth=1, n_estimators=600 | 1.0251 |
+| max_depth=2, n_estimators=100 | 1.0173 ← chosen |
+| max_depth=2, n_estimators=300 | 1.0329 |
+| max_depth=2, n_estimators=600 | 1.0648 |
+| max_depth=3, n_estimators=100 | 1.0229 |
+| max_depth=3, n_estimators=300 | 1.0548 |
+| max_depth=3, n_estimators=600 | 1.1062 |
