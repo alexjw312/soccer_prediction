@@ -10,16 +10,15 @@ from datetime import date, datetime, timedelta, timezone
 import joblib
 import psycopg
 import pytest
-from live_helpers import round_kickoff, season, write_snapshot
+from live_helpers import add_snapshot, round_kickoff, snapshot_name
 
 from soccer_forecasting import PROJECT_ROOT
 from soccer_forecasting.deployment import train_deployment
-from soccer_forecasting.features import build_features, compute_form
+from soccer_forecasting.features import compute_form
 from soccer_forecasting.forecasting import ForecastError, forecast_day, run_daily
 from soccer_forecasting.live_loading import load_live
 from soccer_forecasting.live_source import LiveSourceError
-from soccer_forecasting.loading import load_history
-from soccer_forecasting.model_selection import ProtocolError, file_sha256
+from soccer_forecasting.model_selection import ProtocolError
 
 UTC = timezone.utc
 ROUND_11 = round_kickoff(10)                      # 2026-10-31 14:00 UTC
@@ -31,38 +30,6 @@ MORNING_12 = datetime(2026, 11, 7, 6, 0, tzinfo=UTC)
 
 def count(db, sql, *params):
     return db.execute(sql, params).fetchone()[0]
-
-
-def snapshot_name(moment: datetime) -> str:
-    return moment.strftime("%Y%m%dT%H%M%SZ")
-
-
-def add_snapshot(root, moment: datetime, finished_rounds: int):
-    write_snapshot(root, snapshot_name(moment), season(finished_rounds), moment.isoformat())
-
-
-@pytest.fixture
-def ready(db, project_copy):
-    root = project_copy
-    load_history(db, root)
-    build_features(db, root)
-    reports = root / "reports"
-    reports.mkdir()
-    (reports / "frozen_selection.json").write_text(json.dumps({
-        "selected_model": "logistic_regression", "settings": {"C": 0.03, "max_iter": 5000},
-        "feature_version": "form_v1", "random_seed": 20261110,
-        "protocol_sha256": file_sha256(root / "config" / "milestone3.json")}))
-    (reports / "final_test.json").write_text('{"note": "stand-in for the one-time final test"}')
-    add_snapshot(root, datetime(2026, 10, 30, 5, 0, tzinfo=UTC), finished_rounds=10)
-    load_live(db, root)
-    return db, root
-
-
-@pytest.fixture
-def trained(ready):
-    db, root = ready
-    train_deployment(db, root)
-    return db, root
 
 
 # --- deployment model ---------------------------------------------------------------

@@ -15,6 +15,7 @@
   predict            save forecasts for today's matches (London date); --date to choose a day,
                      --preview to show forecasts for any day without saving them
   daily              fetch-live, load-live and predict for today, logged in job_runs
+  serve              start the read-only API and dashboard on http://127.0.0.1:8000 (--port to change)
 
 DATABASE_URL can be set in the terminal or as a line in the project's .env file.
 """
@@ -40,7 +41,8 @@ from .migrations import MigrationError, apply_migrations
 from .parsing import SourceDataError
 
 COMMANDS = ["init-db", "load-history", "check", "build-features", "evaluate-baseline",
-            "select-model", "evaluate-final", "fetch-live", "load-live", "train-deployment", "predict", "daily"]
+            "select-model", "evaluate-final", "fetch-live", "load-live", "train-deployment", "predict", "daily",
+            "serve"]
 
 
 def main() -> int:
@@ -53,7 +55,16 @@ def main() -> int:
                         help="fetch-live: season start year, e.g. 2026 for 2026/27 (default: current)")
     parser.add_argument("--date", help="predict: match day as YYYY-MM-DD (default: today in London)")
     parser.add_argument("--preview", action="store_true", help="predict: show forecasts without saving them")
+    parser.add_argument("--port", type=int, default=8000, help="serve: port on this computer (default 8000)")
     args = parser.parse_args()
+
+    if args.command == "serve":
+        import uvicorn
+        from .api import create_app
+        print(f"Dashboard: http://127.0.0.1:{args.port}   API documentation: http://127.0.0.1:{args.port}/docs")
+        print("Press Ctrl+C to stop.")
+        uvicorn.run(create_app(), host="127.0.0.1", port=args.port, log_level="warning")
+        return 0
 
     if args.command == "fetch-live":  # needs no database
         from datetime import date

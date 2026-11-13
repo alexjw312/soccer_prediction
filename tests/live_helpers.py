@@ -59,3 +59,11 @@ def write_snapshot(root, name, payload, retrieved, season_year=2026):
         "files": [{"file": "matches.json", "endpoint": "/competitions/PL/matches?season=2026",
                    "retrieved_at_utc": retrieved, "bytes": len(data), "sha256": hashlib.sha256(data).hexdigest()}]}))
     return folder
+
+
+def snapshot_name(moment: datetime) -> str:
+    return moment.strftime("%Y%m%dT%H%M%SZ")
+
+
+def add_snapshot(root, moment: datetime, finished_rounds: int):
+    write_snapshot(root, snapshot_name(moment), season(finished_rounds), moment.isoformat())

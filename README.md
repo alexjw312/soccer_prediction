@@ -113,6 +113,24 @@ daily downloads fresh data, loads it, and saves forecasts for that day's remaini
 
 Every daily or predict run is logged in job_runs, including failures. prediction_results shows each forecast next to the result and its log loss once the match is played.
 
+**API and dashboard (Milestone 4, step 4)**
+
+    python -m soccer_forecasting serve
+
+Then open http://127.0.0.1:8000 for the dashboard, or http://127.0.0.1:8000/docs for the API's interactive documentation. Press Ctrl+C to stop. The service only listens on your own computer.
+
+| Address | What it returns |
+| --- | --- |
+| / | Dashboard: upcoming fixtures with their forecasts once published, recent forecasts next to results, performance so far, data freshness |
+| /health | Database status, newest download and its age, deployment model run, last job run |
+| /forecasts?date=YYYY-MM-DD | Saved forecasts for one match day (default: today in London) |
+| /forecasts/upcoming | Saved forecasts for matches not yet started |
+| /fixtures/upcoming | The next fixtures, each with its forecast or null until match day |
+| /matches/{id}/forecasts | Every forecast saved for one match |
+| /performance | Log loss and accuracy of forecasts for matches played on their forecast day, against historical shares and one third each |
+
+The service only reads saved forecasts and never recomputes one, so it always shows exactly what was recorded before kickoff. Its database session is read-only. Every response carries the attribution Football data provided by the Football-Data.org API.
+
 **Files**
 
 | Path | Purpose |

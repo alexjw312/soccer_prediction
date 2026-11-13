@@ -18,10 +18,12 @@ dependencies = [
     # needs OpenMP from Homebrew: brew install libomp
     "xgboost==3.4.1; sys_platform != 'linux'",
     "xgboost-cpu==3.4.1; sys_platform == 'linux'",
+    "fastapi==0.162.5",
+    "uvicorn==0.54.0",
 ]
 
 [project.optional-dependencies]
-dev = ["pytest==9.2.0"]
+dev = ["pytest==9.2.0", "httpx2==2.16.0"]
 
 [tool.setuptools.packages.find]
 where = ["src"]

@@ -3,8 +3,10 @@
 Database tests need TEST_DATABASE_URL. Each test runs inside its own new
 PostgreSQL schema, which is dropped afterwards, so tests cannot touch real tables.
 """
+import json
 import os
 import shutil
+from datetime import datetime, timezone
 from uuid import uuid4
 
 import psycopg
@@ -13,6 +15,10 @@ from psycopg import sql
 
 from soccer_forecasting import PROJECT_ROOT
 from soccer_forecasting.env import load_env
+from soccer_forecasting.features import build_features
+from soccer_forecasting.live_loading import load_live
+from soccer_forecasting.loading import load_history
+from soccer_forecasting.model_selection import file_sha256
 from soccer_forecasting.migrations import apply_migrations
 
 
@@ -44,3 +50,31 @@ def project_copy(tmp_path):
         ignore = shutil.ignore_patterns("live") if folder == "data" else None
         shutil.copytree(PROJECT_ROOT / folder, tmp_path / folder, ignore=ignore)
     return tmp_path
+
+
+@pytest.fixture
+def ready(db, project_copy):
+    """History loaded, features built, a frozen selection and final-test stand-in in place, and a
+    generated live season loaded from one download (rounds 1-10 finished, downloaded 30 Oct 05:00 UTC)."""
+    from live_helpers import add_snapshot
+    root = project_copy
+    load_history(db, root)
+    build_features(db, root)
+    reports = root / "reports"
+    reports.mkdir()
+    (reports / "frozen_selection.json").write_text(json.dumps({
+        "selected_model": "logistic_regression", "settings": {"C": 0.03, "max_iter": 5000},
+        "feature_version": "form_v1", "random_seed": 20261110,
+        "protocol_sha256": file_sha256(root / "config" / "milestone3.json")}))
+    (reports / "final_test.json").write_text('{"note": "stand-in for the one-time final test"}')
+    add_snapshot(root, datetime(2026, 10, 30, 5, 0, tzinfo=timezone.utc), finished_rounds=10)
+    load_live(db, root)
+    return db, root
+
+
+@pytest.fixture
+def trained(ready):
+    from soccer_forecasting.deployment import train_deployment
+    db, root = ready
+    train_deployment(db, root)
+    return db, root
