@@ -23,7 +23,7 @@ dependencies = [
 ]
 
 [project.optional-dependencies]
-dev = ["pytest==9.2.0", "httpx2==2.16.0"]
+dev = ["pytest==9.2.0", "httpx2==2.16.0", "pyyaml==6.0.3"]
 
 [tool.setuptools.packages.find]
 where = ["src"]

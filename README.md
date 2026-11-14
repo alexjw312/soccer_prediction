@@ -131,6 +131,59 @@ Then open http://127.0.0.1:8000 for the dashboard, or http://127.0.0.1:8000/docs
 
 The service only reads saved forecasts and never recomputes one, so it always shows exactly what was recorded before kickoff. Its database session is read-only. Every response carries the attribution Football data provided by the Football-Data.org API.
 
+**Run it automatically on a Mac (Milestone 4, step 5)**
+
+    bash scripts/macos/install_schedule.sh
+
+This installs a launchd job (the scheduler built into macOS) that runs scripts/macos/run_daily.sh every day at 01:15 and 06:45 Mac time. On a Mac set to US Eastern time, that is about 06:15 and 11:45 in London: the planned forecast time, and a second try before most first kickoffs. The second run adds nothing if the first already saved the forecasts. Before running daily, the script starts Docker Desktop and the soccer-pg container if they are not running. It uses DATABASE_URL from .env, or the local address from the setup above.
+
+To try it now instead of waiting:
+
+    launchctl kickstart gui/$(id -u)/com.soccer-prediction.daily
+    tail -n 30 logs/daily.log
+
+Each run appends to logs/daily.log and is recorded in job_runs. logs/launchd.log only gets output if the script itself cannot start. Neither log is in Git.
+
+- The job runs while you are logged in, including with the screen locked. If the Mac is asleep at a scheduled time, macOS runs the job when it wakes; if it is switched off, that run is missed. Forecasts are only saved before kickoff, so a late run covers only the matches still to come.
+- Keep the project outside Desktop, Documents and Downloads. macOS blocks background jobs from reading those folders.
+- The times are Mac local time. On a Mac in another time zone, change the two Hour values in install_schedule.sh and run it again. Run it again too after moving the project folder.
+- Optional: to have the Mac wake itself shortly before the first run, use `sudo pmset repeat wakeorpoweron MTWRFSU 01:10:00`. `pmset -g sched` shows it, and `sudo pmset repeat cancel` removes it.
+- To remove the job: `bash scripts/macos/uninstall_schedule.sh`.
+
+**Run it on GitHub Actions with a Neon database (Milestone 5, step 1)**
+
+.github/workflows/daily.yml runs daily on GitHub's computers at 05:17 and 10:47 UTC every day. That is 05:17 and 10:47 in London in winter and an hour later in summer, both before the usual first kickoff. The database is hosted by Neon (free plan, PostgreSQL 16), so no computer of yours needs to be on. "Run workflow" on the repository's Actions tab starts a run by hand, and "Disable workflow" in the same place stops the schedule.
+
+Each run starts on an empty computer with no artifacts/ or data/live/, so the database keeps what used to live only on disk. init-db applies sql/005_stored_files.sql. train-deployment then stores the model file in model_files, where the database checks it against the hash recorded in model_runs, and forecasts use that copy when the file is not on disk. load-live stores every downloaded file in live_download_files, including downloads loaded earlier, and export-live writes them back out under data/live.
+
+One-time move from your Mac (Docker running):
+
+    python -m soccer_forecasting init-db
+    python -m soccer_forecasting train-deployment
+    python -m soccer_forecasting load-live
+
+Create a Neon project with Postgres 16, click Connect, turn Connection pooling off and copy the direct connection string. Then copy the database with the tools inside the soccer-pg container, and check the copy:
+
+    read -rs 'NEON_URL?Neon connection string: '; echo
+    docker exec soccer-pg pg_dump -U soccer -d soccer --format=custom --no-owner --no-privileges > ~/soccer.dump
+    docker exec -i soccer-pg pg_restore --no-owner --no-privileges --exit-on-error --single-transaction -d "$NEON_URL" < ~/soccer.dump
+    DATABASE_URL="$NEON_URL" python -m soccer_forecasting check
+    unset NEON_URL
+
+`read -rs` keeps the password off the screen and out of the shell history. ~/soccer.dump is outside the repository and must never be committed: it holds football-data.org data.
+
+Then add the two secrets the workflow needs. Each command asks for the value without showing it:
+
+    gh secret set DATABASE_URL
+    gh secret set FOOTBALL_DATA_API_KEY
+
+Push, then start the first run with "Run workflow". The logs of a public repository are public. Only the two steps that need the secrets receive them, the project never prints them, and GitHub hides their values in the logs. Things to know:
+
+- GitHub can start scheduled runs late when it is busy, and it switches off schedules in a public repository after 60 days without a commit. "Enable workflow" on the Actions tab turns it back on.
+- With Actions notifications on in your GitHub notification settings, GitHub emails you when a scheduled run fails. Each run is also recorded in job_runs.
+- To read the cloud database from your Mac, for example with serve, put the Neon string in .env as DATABASE_URL. Tests keep using TEST_DATABASE_URL.
+- Once the workflow has worked for a few mornings, remove the Mac schedule (`bash scripts/macos/uninstall_schedule.sh`) and quit Docker. Until then your Mac keeps saving forecasts in its own database; the Neon database is the one that counts.
+
 **Files**
 
 | Path | Purpose |
@@ -152,6 +205,10 @@ The service only reads saved forecasts and never recomputes one, so it always sh
 | reports/frozen_selection.json | The chosen model and settings, with hashes that evaluate-final checks |
 | artifacts/ | Fitted models with metadata (not in Git; rebuilt by the commands) |
 | pyproject.toml | Pinned dependencies and package definition |
+| .github/workflows/daily.yml | The daily job on GitHub Actions: schedule, secrets and commands |
+| sql/005_stored_files.sql | model_files and live_download_files: the model file and every download, kept in the database |
+| scripts/macos/ | The scheduled daily run on a Mac: the run script, and installing and removing the launchd job |
+| logs/ | Output of scheduled runs (not in Git) |
 | scripts/audit_data.py | Reproducible downloader and structural audit |
 | data/manifest.json | Source paths, URLs, hashes, and retrieval metadata |
 | data/raw/openfootball/ | Original JSON snapshots and upstream license/README |
@@ -175,5 +232,4 @@ The upstream license is preserved under data/raw/openfootball/<commit>/LICENSE.m
 
 **Next**
 
-Milestone 4 is under way: live fixtures, saved predictions, an API and a dashboard.
-
+Milestone 4 finishes when the scheduled job saves its first forecasts for a real match day. Milestone 5 has moved the daily job to GitHub Actions and Neon; next come automated tests on GitHub, a public dashboard, the architecture and evaluation write-ups, and a demo.

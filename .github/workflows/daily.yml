@@ -1,0 +1,62 @@
+# Daily forecasts on GitHub's computers (Milestone 5, step 1).
+#
+# Each run starts a fresh Linux computer, installs the project, applies any new
+# schema changes to the Neon database, then runs `daily`: download, load, and
+# save forecasts for today's London matches. The database is the only thing
+# that lasts between runs, so it also keeps each download and the model file.
+#
+# GitHub's schedule is in UTC and can start late when GitHub is busy, mostly at
+# the top of the hour, hence the odd minutes. 05:17 and 10:47 UTC are the same
+# times in London in winter and an hour later in summer, both before the usual
+# first kickoff (12:30). The second run is a retry: it adds nothing if the first
+# saved the day's forecasts. "Run workflow" on the Actions tab starts one by hand.
+#
+# Secrets (Settings > Secrets and variables > Actions): DATABASE_URL, the Neon
+# direct connection string, and FOOTBALL_DATA_API_KEY. Only the two steps that
+# need them can see them. The logs of a public repository are public, so the
+# project never prints them, and GitHub also hides their values in the logs.
+name: Daily forecasts
+
+on:
+  schedule:
+    - cron: "17 5 * * *"
+    - cron: "47 10 * * *"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: daily-forecasts
+  cancel-in-progress: false
+
+jobs:
+  daily:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    steps:
+      - name: Check out the code
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Set up Python
+        uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0 # v7.1.0
+        with:
+          python-version: "3.14"
+          cache: pip
+          cache-dependency-path: pyproject.toml
+
+      - name: Install the project
+        run: python -m pip install -e .
+
+      - name: Apply any new schema changes
+        env:
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+        run: python -m soccer_forecasting init-db
+
+      - name: Download, load and forecast
+        env:
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+          FOOTBALL_DATA_API_KEY: ${{ secrets.FOOTBALL_DATA_API_KEY }}
+        run: python -m soccer_forecasting daily

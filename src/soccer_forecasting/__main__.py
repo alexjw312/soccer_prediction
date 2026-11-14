@@ -10,7 +10,9 @@
                      needs --confirm-final-test and refuses a second run
   fetch-live         download this season's fixtures and results from
                      football-data.org (needs FOOTBALL_DATA_API_KEY in .env)
-  load-live          load downloaded snapshots into the database, oldest first
+  load-live          load downloaded snapshots into the database, oldest first, keeping a
+                     copy of every downloaded file there
+  export-live        write the downloads kept in the database back out under data/live
   train-deployment   refit the frozen model on every historical season (after the final test)
   predict            save forecasts for today's matches (London date); --date to choose a day,
                      --preview to show forecasts for any day without saving them
@@ -33,7 +35,7 @@ from .features import FEATURE_VERSION, build_features
 from .deployment import train_deployment
 from .final_evaluation import evaluate_final
 from .forecasting import ForecastError, forecast_day, london_date, record_job, run_daily
-from .live_loading import load_live
+from .live_loading import SNAPSHOTS, export_live, load_live
 from .live_source import LiveSourceError, fetch_snapshot, season_start_year
 from .model_selection import NAMES, ProtocolError, run_selection
 from .loading import load_history, read_json
@@ -41,7 +43,7 @@ from .migrations import MigrationError, apply_migrations
 from .parsing import SourceDataError
 
 COMMANDS = ["init-db", "load-history", "check", "build-features", "evaluate-baseline",
-            "select-model", "evaluate-final", "fetch-live", "load-live", "train-deployment", "predict", "daily",
+            "select-model", "evaluate-final", "fetch-live", "load-live", "export-live", "train-deployment", "predict", "daily",
             "serve"]
 
 
@@ -89,7 +91,12 @@ def main() -> int:
         parser.error("set DATABASE_URL in the terminal or in .env, for example "
                      "DATABASE_URL=postgresql://soccer:dev@localhost:5432/soccer")
 
-    with psycopg.connect(url, autocommit=True) as conn:
+    try:
+        connection = psycopg.connect(url, autocommit=True)
+    except psycopg.OperationalError as error:  # the message names the host and user, never the password
+        print(f"Could not connect to the database: {str(error).strip()}", file=sys.stderr)
+        return 1
+    with connection as conn:
         if args.command == "init-db":
             try:
                 result = apply_migrations(conn, PROJECT_ROOT)
@@ -153,7 +160,8 @@ def main() -> int:
                 print("No snapshots found. Run fetch-live first.")
             for s in summaries:
                 if not s.loaded:
-                    print(f"{s.snapshot}: already loaded")
+                    kept = f"; copied {s.files_stored} files into the database" if s.files_stored else ""
+                    print(f"{s.snapshot}: already loaded{kept}")
                     continue
                 print(f"{s.snapshot}: {s.fixtures} fixtures; {s.inserted} new, {s.newly_completed} newly completed, "
                       f"{s.rescheduled} rescheduled, {s.other_updates} other changes")
@@ -163,13 +171,25 @@ def main() -> int:
             print(f"Live season now holds {status[0]} fixtures, {status[1]} with results.")
             return 0
 
+        if args.command == "export-live":
+            try:
+                written = export_live(conn, PROJECT_ROOT)
+            except SourceDataError as error:
+                print(f"Export stopped: {error}", file=sys.stderr)
+                return 1
+            for name in written:
+                print(f"Wrote {SNAPSHOTS / name}")
+            print(f"{len(written)} snapshot folders written; existing folders were checked and left as they were.")
+            return 0
+
         if args.command == "train-deployment":
             try:
                 run = train_deployment(conn, PROJECT_ROOT)
             except (ProtocolError, RuntimeError) as error:
                 print(f"Training refused: {error}", file=sys.stderr)
                 return 1
-            state = "Trained and recorded" if run["created"] else "Already trained; reusing"
+            state = ("Trained and recorded" if run["created"] else
+                     "Restored the recorded file of" if run.get("restored") else "Already trained; reusing")
             print(f"{state} model run {run['model_run_id']}: {NAMES[run['model']]} on "
                   f"{run['training_matches']} matches from every historical season.")
             return 0

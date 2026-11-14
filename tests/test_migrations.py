@@ -22,7 +22,7 @@ def test_milestone_1_database_is_upgraded_without_reloading(db):
     # Load the history, then strip the schema back to Milestone 1: 001 only, no migrations table.
     load_history(db, PROJECT_ROOT)
     for statement in ("DROP TABLE job_runs", "DROP VIEW prediction_results", "DROP TABLE predictions",
-                      "DROP TABLE model_runs",
+                      "DROP TABLE model_files", "DROP TABLE live_download_files", "DROP TABLE model_runs",
                       "DROP VIEW result_first_seen", "DROP TABLE match_observations", "DROP TABLE provider_matches",
                       "ALTER TABLE matches DROP COLUMN kickoff_utc",
                       "DROP VIEW fixture_features", "DROP TABLE team_form_snapshots", "DROP TABLE schema_migrations"):

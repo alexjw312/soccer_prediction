@@ -12,6 +12,7 @@ The policy (config/milestone0.json and config/live.json):
 A preview applies the same rules to any day but saves nothing.
 """
 import hashlib
+import io
 import json
 from dataclasses import dataclass, field
 from datetime import date, datetime, timedelta, timezone
@@ -21,6 +22,7 @@ from zoneinfo import ZoneInfo
 import joblib
 import numpy as np
 
+from .deployment import stored_model_file
 from .features import FEATURE_VERSION, compute_form, cutoff_offset_days
 from .live_loading import live_config, load_live
 from .live_source import fetch_snapshot, season_start_year
@@ -68,13 +70,21 @@ def latest_model_run(conn, root: Path) -> tuple[int, object]:
         raise ForecastError("no deployment model yet; run train-deployment first")
     run_id, path, sha, features, classes = row
     file = root / path
-    if not file.exists():
-        raise ForecastError(f"model file {path} is missing; run train-deployment to restore it")
-    if hashlib.sha256(file.read_bytes()).hexdigest() != sha:
-        raise ForecastError(f"model file {path} does not match its recorded hash")
+    if file.exists():
+        data = file.read_bytes()
+        if hashlib.sha256(data).hexdigest() != sha:
+            raise ForecastError(f"model file {path} does not match its recorded hash")
+    else:
+        # A computer that starts empty (GitHub Actions) uses the copy kept in the database.
+        data = stored_model_file(conn, run_id)
+        if data is None:
+            raise ForecastError(f"model file {path} is missing and the database holds no copy; "
+                                f"run train-deployment on the computer that trained it")
+        if hashlib.sha256(data).hexdigest() != sha:
+            raise ForecastError(f"the stored copy of model run {run_id} does not match its recorded hash")
     if list(features) != FEATURES or list(classes) != ["H", "D", "A"]:
         raise ForecastError("the model's features or class order differ from this code")
-    return run_id, joblib.load(file)
+    return run_id, joblib.load(io.BytesIO(data))
 
 
 def _latest_snapshot(conn, provider: str):

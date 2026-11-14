@@ -11,6 +11,11 @@ fixture in a snapshot:
 Anything unexpected, such as an unknown team, an unknown status, a changed
 file or an out-of-order snapshot, stops the load and saves nothing from that
 snapshot.
+
+Every downloaded file is also copied into the database (live_download_files),
+including snapshots loaded before that table existed, so the raw data
+survives on computers that start empty. export_live writes the copies back
+out as snapshot folders.
 """
 import hashlib
 import json
@@ -53,6 +58,7 @@ class SnapshotSummary:
     newly_completed: int = 0
     rescheduled: int = 0
     other_updates: int = 0
+    files_stored: int = 0
 
 
 def live_config(root: Path) -> dict:
@@ -126,6 +132,62 @@ def _verified_matches(folder: Path, config: dict) -> tuple[dict, dict, bytes]:
     return manifest, entry, data
 
 
+def _store_files(conn, provider: str, folder: Path, manifest: dict) -> int:
+    """Copy each file of a snapshot into the database, checking it against the manifest first."""
+    hashes = {f["file"]: f["sha256"] for f in manifest["files"]}
+    stored = 0
+    for name in sorted(hashes) + ["manifest.json"]:
+        path = folder / name
+        if not path.exists():
+            raise SourceDataError(f"{folder.name}: {name} is listed in the manifest but missing")
+        data = path.read_bytes()
+        sha = hashlib.sha256(data).hexdigest()
+        if name in hashes and sha != hashes[name]:
+            raise SourceDataError(f"{folder.name}: {name} does not match its manifest hash")
+        inserted = conn.execute(
+            """INSERT INTO live_download_files (provider, snapshot, file_name, content) VALUES (%s, %s, %s, %s)
+               ON CONFLICT (provider, snapshot, file_name) DO NOTHING""", (provider, folder.name, name, data)).rowcount
+        if not inserted:
+            kept = conn.execute(
+                """SELECT content_sha256 FROM live_download_files
+                   WHERE provider = %s AND snapshot = %s AND file_name = %s""", (provider, folder.name, name)).fetchone()[0]
+            if kept != sha:
+                raise SourceDataError(f"{folder.name}: {name} differs from the copy already in the database")
+        stored += inserted
+    return stored
+
+
+def export_live(conn, root: Path) -> list[str]:
+    """Write every snapshot kept in the database back out under data/live, checking each file's hash.
+
+    Folders that already exist are left alone if their files match, and refused if they differ.
+    Returns the names of the folders written.
+    """
+    provider = live_config(root)["provider"]
+    written = []
+    snapshots = [r[0] for r in conn.execute(
+        "SELECT DISTINCT snapshot FROM live_download_files WHERE provider = %s ORDER BY snapshot", (provider,))]
+    for snapshot in snapshots:
+        files = conn.execute(
+            """SELECT file_name, content, content_sha256 FROM live_download_files
+               WHERE provider = %s AND snapshot = %s ORDER BY file_name""", (provider, snapshot)).fetchall()
+        folder = root / SNAPSHOTS / snapshot
+        if folder.exists():
+            for name, _, sha in files:
+                path = folder / name
+                if not path.exists() or hashlib.sha256(path.read_bytes()).hexdigest() != sha:
+                    raise SourceDataError(f"{snapshot}: {name} on disk differs from the copy in the database")
+            continue
+        folder.mkdir(parents=True)
+        for name, content, sha in files:
+            data = bytes(content)
+            if hashlib.sha256(data).hexdigest() != sha:
+                raise SourceDataError(f"{snapshot}: the stored {name} does not match its hash")
+            (folder / name).write_bytes(data)
+        written.append(snapshot)
+    return written
+
+
 def _team_ids(conn, provider: str, rows: list[LiveMatch]) -> dict[str, int]:
     wanted = {(r.home_provider_id, r.home_name) for r in rows} | {(r.away_provider_id, r.away_name) for r in rows}
     found = dict(conn.execute(
@@ -148,6 +210,8 @@ def _load_one(conn, root: Path, folder: Path, config: dict, competition: str) ->
     if seen:
         if seen[0] != entry["sha256"]:
             raise SourceDataError(f"{folder.name}: differs from the copy already loaded")
+        with conn.transaction():  # snapshots loaded before 005_stored_files get their copy now
+            summary.files_stored = _store_files(conn, provider, folder, manifest)
         return summary
     newest = conn.execute("SELECT max(source_commit) FROM source_files WHERE provider = %s", (provider,)).fetchone()[0]
     if newest and folder.name < newest:
@@ -159,6 +223,7 @@ def _load_one(conn, root: Path, folder: Path, config: dict, competition: str) ->
     with conn.transaction():
         _seed_teams(conn, root)
         team_id = _team_ids(conn, provider, rows)
+        summary.files_stored = _store_files(conn, provider, folder, manifest)
         file_id = conn.execute(
             """INSERT INTO source_files (provider, source_commit, source_path, url, sha256, byte_count, retrieved_at_utc)
                VALUES (%s, %s, 'matches.json', %s, %s, %s, %s) RETURNING source_file_id""",
