@@ -1,0 +1,60 @@
+# The whole test suite on every push and pull request (Milestone 5, step 2).
+#
+# A PostgreSQL 16 service, the same version as the Docker database on the Mac,
+# holds the test database. It exists only for this run, so its password is a
+# throwaway, not a secret. The workflow uses no secrets and cannot write to the
+# repository. On GitHub the database tests fail rather than skip if
+# TEST_DATABASE_URL is missing (tests/conftest.py), so a green check means the
+# whole suite ran.
+name: Tests
+
+on:
+  push:
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: tests-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  pytest:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: soccer
+          POSTGRES_PASSWORD: dev
+          POSTGRES_DB: soccer_test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U soccer -d soccer_test"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 20
+    env:
+      TEST_DATABASE_URL: postgresql://soccer:dev@localhost:5432/soccer_test
+    steps:
+      - name: Check out the code
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Set up Python
+        uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0 # v7.1.0
+        with:
+          python-version: "3.14"
+          cache: pip
+          cache-dependency-path: pyproject.toml
+
+      - name: Install the project and test tools
+        run: python -m pip install -e ".[dev]"
+
+      - name: Run the tests
+        run: python -m pytest -ra

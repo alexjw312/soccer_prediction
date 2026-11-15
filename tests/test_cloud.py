@@ -22,7 +22,6 @@ from psycopg.conninfo import conninfo_to_dict, make_conninfo
 
 from soccer_forecasting import PROJECT_ROOT
 from soccer_forecasting.deployment import train_deployment
-from soccer_forecasting.env import load_env
 from soccer_forecasting.forecasting import ForecastError, forecast_day
 from soccer_forecasting.live_loading import SNAPSHOTS, export_live, load_live
 from soccer_forecasting.loading import load_history
@@ -229,29 +228,50 @@ def test_export_refuses_a_folder_that_differs_from_the_database(live):
 
 # --- what reaches a public log ------------------------------------------------------
 
-def test_a_failed_connection_never_prints_the_password():
-    load_env(PROJECT_ROOT, ("TEST_DATABASE_URL",))
-    url = os.environ.get("TEST_DATABASE_URL")
-    if not url:
-        pytest.skip("set TEST_DATABASE_URL to run database tests")
-    # A database that does not exist, so this fails even where passwords are not checked.
-    params = {**conninfo_to_dict(url), "password": "pw-that-must-not-appear-4c1e", "dbname": "no_such_db_4c1e"}
+def run_command(database_url, *command):
     env = {k: v for k, v in os.environ.items() if k != "FOOTBALL_DATA_API_KEY"}
-    result = subprocess.run([sys.executable, "-m", "soccer_forecasting", "check"],
-                            env={**env, "DATABASE_URL": make_conninfo(**params)},
-                            capture_output=True, text=True, timeout=60)
+    return subprocess.run([sys.executable, "-m", "soccer_forecasting", *command],
+                          env={**env, "DATABASE_URL": database_url}, capture_output=True, text=True, timeout=60)
+
+
+def test_a_failed_connection_never_prints_the_password(test_database_url):
+    # A database that does not exist, so this fails even where passwords are not checked.
+    params = {**conninfo_to_dict(test_database_url), "password": "pw-that-must-not-appear-4c1e",
+              "dbname": "no_such_db_4c1e"}
+    result = run_command(make_conninfo(**params), "check")
     assert result.returncode == 1
     assert "Could not connect to the database" in result.stderr
     assert "pw-that-must-not-appear-4c1e" not in result.stdout + result.stderr
 
 
-# --- the workflow file ---------------------------------------------------------------
+@pytest.mark.parametrize("address", [
+    "postgresql//neondb_owner:pw-that-must-not-appear-77aa@ep-example.us-east-2.aws.neon.tech/neondb",  # no colon
+    "neondb_owner:pw-that-must-not-appear-77aa@ep-example.us-east-2.aws.neon.tech/neondb",             # no scheme
+])
+def test_a_malformed_address_is_refused_without_being_printed(address):
+    result = run_command(address, "check")
+    assert result.returncode == 1
+    assert "not a valid database address" in result.stderr
+    assert "Traceback" not in result.stderr
+    assert "pw-that-must-not-appear-77aa" not in result.stdout + result.stderr
+
+
+# --- the workflow files --------------------------------------------------------------
+
+def read_workflow(name):
+    data = yaml.safe_load((PROJECT_ROOT / ".github" / "workflows" / name).read_text())
+    data["on"] = data.pop(True)  # YAML 1.1 reads the key "on" as true
+    return data
+
 
 @pytest.fixture(scope="module")
 def workflow():
-    data = yaml.safe_load((PROJECT_ROOT / ".github" / "workflows" / "daily.yml").read_text())
-    data["on"] = data.pop(True)  # YAML 1.1 reads the key "on" as true
-    return data
+    return read_workflow("daily.yml")
+
+
+@pytest.fixture(scope="module")
+def tests_workflow():
+    return read_workflow("tests.yml")
 
 
 def steps(workflow):
@@ -296,3 +316,36 @@ def test_runs_the_same_commands_as_on_a_mac(workflow):
     # An editable install, because the project finds config/ and sql/ next to its source code.
     assert [s["run"] for s in steps(workflow) if "run" in s] == [
         "python -m pip install -e .", "python -m soccer_forecasting init-db", "python -m soccer_forecasting daily"]
+
+
+def test_the_test_workflow_runs_the_whole_suite_against_postgres_16(tests_workflow):
+    assert set(tests_workflow["on"]) == {"push", "pull_request", "workflow_dispatch"}
+    job = tests_workflow["jobs"]["pytest"]
+    service = job["services"]["postgres"]
+    assert service["image"] == "postgres:16"
+    assert service["image"] in (PROJECT_ROOT / "README.md").read_text()  # the same version as on the Mac
+    url = conninfo_to_dict(job["env"]["TEST_DATABASE_URL"])
+    assert (url["user"], url["password"], url["dbname"]) == (
+        service["env"]["POSTGRES_USER"], service["env"]["POSTGRES_PASSWORD"], service["env"]["POSTGRES_DB"])
+    assert [s["run"] for s in job["steps"] if "run" in s] == ['python -m pip install -e ".[dev]"',
+                                                              "python -m pytest -ra"]
+
+
+def test_the_test_workflow_uses_no_secrets_and_cannot_write(tests_workflow):
+    assert "secrets." not in (PROJECT_ROOT / ".github" / "workflows" / "tests.yml").read_text()
+    assert tests_workflow["permissions"] == {"contents": "read"}
+
+
+def test_both_workflows_use_the_same_pinned_actions_and_python(workflow, tests_workflow):
+    daily_steps, test_steps = steps(workflow), tests_workflow["jobs"]["pytest"]["steps"]
+
+    def actions(job_steps):
+        return sorted(s["uses"] for s in job_steps if "uses" in s)
+
+    def python(job_steps):
+        return next(s for s in job_steps if s.get("uses", "").startswith("actions/setup-python@"))["with"]["python-version"]
+
+    assert actions(daily_steps) == actions(test_steps)
+    assert python(daily_steps) == python(test_steps)
+    checkout = next(s for s in test_steps if s.get("uses", "").startswith("actions/checkout@"))
+    assert checkout["with"]["persist-credentials"] is False

@@ -1,9 +1,11 @@
 SOCCER PREDICTION
 =================
 
+[![Tests](https://github.com/alexjw312/soccer_prediction/actions/workflows/tests.yml/badge.svg)](https://github.com/alexjw312/soccer_prediction/actions/workflows/tests.yml)
+
 Start with docs/MILESTONE_0_REPORT.md, which records how the data source was chosen and audited.
 
-This package contains a source audit, a historical PostgreSQL database, saved team-form features, a class-frequency baseline, and model selection between logistic regression and XGBoost on the validation season. The one-time final test on 2025/26 is built but has not been run. The selected cohort is 2020/21–2025/26, with 2,280 Premier League matches.
+This package contains a source audit, a historical PostgreSQL database, saved team-form features, a class-frequency baseline, and model selection between logistic regression and XGBoost on the validation season. The one-time final test on 2025/26 has been run, and its result is in reports/final_test.md. The selected cohort is 2020/21–2025/26, with 2,280 Premier League matches.
 
 **Build the historical database**
 
@@ -55,7 +57,9 @@ The database tests need a separate database. Each test creates its own temporary
 
     docker exec soccer-pg createdb -U soccer soccer_test
     export TEST_DATABASE_URL=postgresql://soccer:dev@localhost:5432/soccer_test
-    pytest
+    python -m pytest
+
+Without TEST_DATABASE_URL the database tests are skipped. On GitHub, .github/workflows/tests.yml runs the same suite on every push and pull request (Milestone 5, step 2), against a temporary PostgreSQL 16 service, and the badge at the top shows the latest result. It uses no secrets. There a missing TEST_DATABASE_URL makes the database tests fail instead of skip, so a green check means the whole suite ran.
 
 Output from the loader, the checks, the feature build and the tests reports counts and row positions only, so running them does not display 2025/26 outcomes.
 
@@ -206,6 +210,7 @@ Push, then start the first run with "Run workflow". The logs of a public reposit
 | artifacts/ | Fitted models with metadata (not in Git; rebuilt by the commands) |
 | pyproject.toml | Pinned dependencies and package definition |
 | .github/workflows/daily.yml | The daily job on GitHub Actions: schedule, secrets and commands |
+| .github/workflows/tests.yml | The test suite on every push and pull request, with a temporary PostgreSQL 16 |
 | sql/005_stored_files.sql | model_files and live_download_files: the model file and every download, kept in the database |
 | scripts/macos/ | The scheduled daily run on a Mac: the run script, and installing and removing the launchd job |
 | logs/ | Output of scheduled runs (not in Git) |
@@ -232,4 +237,4 @@ The upstream license is preserved under data/raw/openfootball/<commit>/LICENSE.m
 
 **Next**
 
-Milestone 4 finishes when the scheduled job saves its first forecasts for a real match day. Milestone 5 has moved the daily job to GitHub Actions and Neon; next come automated tests on GitHub, a public dashboard, the architecture and evaluation write-ups, and a demo.
+Milestone 4 finishes when the scheduled job saves its first forecasts for a real match day. Milestone 5 has moved the daily job to GitHub Actions and Neon and runs the tests on every push; next come a public dashboard, the architecture and evaluation write-ups, and a demo.

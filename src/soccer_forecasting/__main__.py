@@ -93,6 +93,10 @@ def main() -> int:
 
     try:
         connection = psycopg.connect(url, autocommit=True)
+    except psycopg.ProgrammingError:  # the address could not be read; its text may hold the password
+        print("DATABASE_URL is not a valid database address, so nothing was done. It should look like "
+              "postgresql://user:password@host/database (the value itself is not shown).", file=sys.stderr)
+        return 1
     except psycopg.OperationalError as error:  # the message names the host and user, never the password
         print(f"Could not connect to the database: {str(error).strip()}", file=sys.stderr)
         return 1

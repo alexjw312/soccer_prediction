@@ -2,6 +2,10 @@
 
 Database tests need TEST_DATABASE_URL. Each test runs inside its own new
 PostgreSQL schema, which is dropped afterwards, so tests cannot touch real tables.
+
+Without TEST_DATABASE_URL the database tests are skipped on your own computer,
+but fail on GitHub (where CI is set), so a misconfigured workflow can never
+show a green check while skipping most of the suite.
 """
 import json
 import os
@@ -23,11 +27,19 @@ from soccer_forecasting.migrations import apply_migrations
 
 
 @pytest.fixture
-def db():
+def test_database_url():
     load_env(PROJECT_ROOT, ("TEST_DATABASE_URL",))
     url = os.environ.get("TEST_DATABASE_URL")
     if not url:
+        if os.environ.get("CI"):
+            pytest.fail("TEST_DATABASE_URL is not set on CI, so the database tests cannot run")
         pytest.skip("set TEST_DATABASE_URL to run database tests")
+    return url
+
+
+@pytest.fixture
+def db(test_database_url):
+    url = test_database_url
     name = sql.Identifier(f"test_{uuid4().hex}")
     with psycopg.connect(url, autocommit=True) as conn:
         conn.execute(sql.SQL("CREATE SCHEMA {}").format(name))
