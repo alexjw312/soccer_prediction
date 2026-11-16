@@ -6,7 +6,13 @@ database session is set to read-only, so a bug here cannot change any data.
 
 Run it with: python -m soccer_forecasting serve, then open http://127.0.0.1:8000
 (the dashboard) or http://127.0.0.1:8000/docs (the API's own documentation).
+
+In public (Render, see render.yaml) it runs as uvicorn soccer_forecasting.api:create_app
+--factory, with a login that may only read DASHBOARD_READS (see dashboard_login.py).
+/healthz answers without touching the database, so the host's health checks never
+keep the database awake. Error messages to visitors never include database details.
 """
+import logging
 import math
 import os
 from contextlib import contextmanager
@@ -18,12 +24,20 @@ from zoneinfo import ZoneInfo
 import psycopg
 from fastapi import Depends, FastAPI, HTTPException, Query
 from fastapi.responses import HTMLResponse
+from psycopg.conninfo import conninfo_to_dict
 from psycopg.rows import dict_row
 
 from . import PROJECT_ROOT
 from .env import load_env
 from .live_loading import live_config
 from .loading import read_json
+
+LOG = logging.getLogger(__name__)
+
+# Every table and view the queries below read. The public dashboard's login may read
+# these and nothing else; a test runs every page under that login to keep this complete.
+DASHBOARD_READS = ("job_runs", "matches", "model_runs", "prediction_results", "predictions",
+                   "source_files", "teams")
 
 ATTRIBUTION = "Football data provided by the Football-Data.org API"
 HISTORY_CREDIT = "Historical results: OpenFootball football.json (CC0)"
@@ -76,6 +90,10 @@ def create_app(root: Path = PROJECT_ROOT, connect=None, now=None) -> FastAPI:
         url = os.environ.get("DATABASE_URL")
         if not url:
             raise RuntimeError("set DATABASE_URL in the terminal or in .env")
+        try:
+            conninfo_to_dict(url)
+        except psycopg.ProgrammingError:  # the text could hold the password, so it is not repeated
+            raise RuntimeError("DATABASE_URL is not a valid database address (the value is not shown)") from None
         connect = read_only_connection(url)
 
     def database():
@@ -83,7 +101,8 @@ def create_app(root: Path = PROJECT_ROOT, connect=None, now=None) -> FastAPI:
             with connect() as conn:
                 yield conn
         except psycopg.OperationalError as error:
-            raise HTTPException(status_code=503, detail=f"database unavailable: {error}") from None
+            LOG.warning("database unavailable: %s", error)  # in the host's logs only, never to visitors
+            raise HTTPException(status_code=503, detail="database unavailable, try again shortly") from None
 
     app = FastAPI(title="Premier League match forecasts",
                   description=f"Saved home/draw/away forecasts, made on match day before kickoff. {ATTRIBUTION}.")
@@ -106,6 +125,11 @@ def create_app(root: Path = PROJECT_ROOT, connect=None, now=None) -> FastAPI:
                 "max_snapshot_age_hours": config["max_snapshot_age_hours"],
                 "deployment_model_run": model["model_run_id"] if model else None,
                 "last_job": job, "saved_forecasts": saved, "attribution": ATTRIBUTION}
+
+    @app.get("/healthz")
+    def alive():
+        """The web process is up. Does not touch the database (for the host's health checks)."""
+        return {"status": "ok"}
 
     @app.get("/health")
     def health(conn=Depends(database)):

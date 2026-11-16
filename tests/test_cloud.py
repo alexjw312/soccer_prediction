@@ -349,3 +349,40 @@ def test_both_workflows_use_the_same_pinned_actions_and_python(workflow, tests_w
     assert python(daily_steps) == python(test_steps)
     checkout = next(s for s in test_steps if s.get("uses", "").startswith("actions/checkout@"))
     assert checkout["with"]["persist-credentials"] is False
+
+
+# --- the Render Blueprint ----------------------------------------------------------
+
+@pytest.fixture(scope="module")
+def blueprint():
+    [service] = yaml.safe_load((PROJECT_ROOT / "render.yaml").read_text())["services"]
+    return service
+
+
+def test_the_dashboard_runs_on_a_free_web_service_near_the_database(blueprint):
+    assert (blueprint["type"], blueprint["runtime"], blueprint["plan"]) == ("web", "python", "free")
+    assert blueprint["region"] == "ohio"  # Neon's project is in AWS US East 2 (Ohio)
+    assert blueprint["branch"] == "main"
+
+
+def test_the_dashboard_starts_only_the_api_on_the_hosts_port(blueprint):
+    # Editable, because the project finds config/ next to its source code.
+    assert blueprint["buildCommand"] == "pip install -e ."
+    # Only the API module is loaded (about 50 MB), not the training code behind the command line.
+    assert blueprint["startCommand"] == ("python -m uvicorn soccer_forecasting.api:create_app --factory "
+                                         "--host 0.0.0.0 --port $PORT")
+    from soccer_forecasting import api
+    assert callable(api.create_app)
+
+
+def test_health_checks_use_the_route_that_never_touches_the_database(blueprint):
+    assert blueprint["healthCheckPath"] == "/healthz"
+
+
+def test_deploys_wait_for_the_tests_and_the_address_stays_out_of_the_repository(blueprint, workflow):
+    assert blueprint["autoDeployTrigger"] == "checksPass"
+    variables = {v["key"]: v for v in blueprint["envVars"]}
+    assert set(variables) == {"PYTHON_VERSION", "DATABASE_URL"}
+    assert variables["DATABASE_URL"] == {"key": "DATABASE_URL", "sync": False}  # typed into Render, never stored here
+    daily_python = next(s for s in steps(workflow) if s.get("uses", "").startswith("actions/setup-python@"))
+    assert variables["PYTHON_VERSION"]["value"] == daily_python["with"]["python-version"]

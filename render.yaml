@@ -1,0 +1,26 @@
+# Render Blueprint: the public dashboard and API (Milestone 5, step 3).
+#
+# In the Render Dashboard choose New > Blueprint and pick this repository. Render
+# then asks for DATABASE_URL: paste the read-only address that
+# `python -m soccer_forecasting create-dashboard-login` put on your clipboard.
+# That value is kept in Render, never in this repository.
+#
+# Free instances sleep after 15 minutes without visitors and take about a minute
+# to wake. Render's health checks use /healthz, which does not touch the database,
+# so they never keep Neon awake. Deploys wait until the Tests workflow has passed.
+services:
+  - type: web
+    name: soccer-prediction
+    runtime: python
+    plan: free
+    region: ohio
+    branch: main
+    buildCommand: pip install -e .
+    startCommand: python -m uvicorn soccer_forecasting.api:create_app --factory --host 0.0.0.0 --port $PORT
+    healthCheckPath: /healthz
+    autoDeployTrigger: checksPass
+    envVars:
+      - key: PYTHON_VERSION
+        value: "3.14"
+      - key: DATABASE_URL
+        sync: false

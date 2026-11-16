@@ -127,6 +127,7 @@ Then open http://127.0.0.1:8000 for the dashboard, or http://127.0.0.1:8000/docs
 | --- | --- |
 | / | Dashboard: upcoming fixtures with their forecasts once published, recent forecasts next to results, performance so far, data freshness |
 | /health | Database status, newest download and its age, deployment model run, last job run |
+| /healthz | Always {"status": "ok"}, without touching the database: for the host's health checks |
 | /forecasts?date=YYYY-MM-DD | Saved forecasts for one match day (default: today in London) |
 | /forecasts/upcoming | Saved forecasts for matches not yet started |
 | /fixtures/upcoming | The next fixtures, each with its forecast or null until match day |
@@ -188,6 +189,20 @@ Push, then start the first run with "Run workflow". The logs of a public reposit
 - To read the cloud database from your Mac, for example with serve, put the Neon string in .env as DATABASE_URL. Tests keep using TEST_DATABASE_URL.
 - Once the workflow has worked for a few mornings, remove the Mac schedule (`bash scripts/macos/uninstall_schedule.sh`) and quit Docker. Until then your Mac keeps saving forecasts in its own database; the Neon database is the one that counts.
 
+**Public dashboard on Render (Milestone 5, step 3)**
+
+render.yaml describes a free Render web service in Ohio, next to the Neon database. Render installs the project and starts only the API module with uvicorn (about 60 MB of memory), on the port Render gives it. Its health checks use /healthz, so they never wake the database. Deploys wait until the Tests workflow has passed on the pushed commit. The free service sleeps after 15 minutes without visitors, and the next visit takes about a minute to load.
+
+The dashboard reads Neon through its own login, dashboard_reader, which may only read the seven tables and views the pages use (DASHBOARD_READS in api.py). It cannot write anything, or read anything else, such as the stored downloads, even if it switches its session's read-only setting off. If its password leaked, it could only read what the website already shows. Create it once from your Mac, with the Neon owner's address:
+
+    NEON_URL="$(pbpaste | grep -o 'postgresql://[^"]*' | grep -v -- -pooler | head -n 1)"
+    DATABASE_URL="$NEON_URL" python -m soccer_forecasting create-dashboard-login
+    unset NEON_URL
+
+Paste the first line without pressing Enter, copy the direct connection string in Neon's Connect window, then press Enter. The second command creates the login with a long random password, checks that a delete is refused, and puts the login's address on the clipboard rather than the screen. Running it again gives the login a new password; the old one stops working.
+
+Then, in the Render Dashboard: New > Blueprint, pick this repository, paste the clipboard into DATABASE_URL when asked, and apply. Afterwards clear the clipboard with `pbcopy < /dev/null`. Error pages never show database details to visitors; Render's logs keep them.
+
 **Files**
 
 | Path | Purpose |
@@ -210,6 +225,8 @@ Push, then start the first run with "Run workflow". The logs of a public reposit
 | artifacts/ | Fitted models with metadata (not in Git; rebuilt by the commands) |
 | pyproject.toml | Pinned dependencies and package definition |
 | .github/workflows/daily.yml | The daily job on GitHub Actions: schedule, secrets and commands |
+| render.yaml | The public dashboard on Render: free web service, start command, health check, DATABASE_URL kept out of Git |
+| src/soccer_forecasting/dashboard_login.py | Creates the dashboard's read-only Neon login, or gives it a new password |
 | .github/workflows/tests.yml | The test suite on every push and pull request, with a temporary PostgreSQL 16 |
 | sql/005_stored_files.sql | model_files and live_download_files: the model file and every download, kept in the database |
 | scripts/macos/ | The scheduled daily run on a Mac: the run script, and installing and removing the launchd job |
@@ -237,4 +254,4 @@ The upstream license is preserved under data/raw/openfootball/<commit>/LICENSE.m
 
 **Next**
 
-Milestone 4 finishes when the scheduled job saves its first forecasts for a real match day. Milestone 5 has moved the daily job to GitHub Actions and Neon and runs the tests on every push; next come a public dashboard, the architecture and evaluation write-ups, and a demo.
+Milestone 4 finishes when the scheduled job saves its first forecasts for a real match day. Milestone 5 has moved the daily job to GitHub Actions and Neon, runs the tests on every push and publishes the dashboard on Render; next come the architecture and evaluation write-ups and a demo.

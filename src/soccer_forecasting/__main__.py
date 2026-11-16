@@ -18,6 +18,9 @@
                      --preview to show forecasts for any day without saving them
   daily              fetch-live, load-live and predict for today, logged in job_runs
   serve              start the read-only API and dashboard on http://127.0.0.1:8000 (--port to change)
+  create-dashboard-login
+                     create the public dashboard's read-only database login, or give it a new
+                     password; its address goes to the clipboard (macOS), never to the screen
 
 DATABASE_URL can be set in the terminal or as a line in the project's .env file.
 """
@@ -44,7 +47,7 @@ from .parsing import SourceDataError
 
 COMMANDS = ["init-db", "load-history", "check", "build-features", "evaluate-baseline",
             "select-model", "evaluate-final", "fetch-live", "load-live", "export-live", "train-deployment", "predict", "daily",
-            "serve"]
+            "serve", "create-dashboard-login"]
 
 
 def main() -> int:
@@ -58,6 +61,8 @@ def main() -> int:
     parser.add_argument("--date", help="predict: match day as YYYY-MM-DD (default: today in London)")
     parser.add_argument("--preview", action="store_true", help="predict: show forecasts without saving them")
     parser.add_argument("--port", type=int, default=8000, help="serve: port on this computer (default 8000)")
+    parser.add_argument("--role", default="dashboard_reader",
+                        help="create-dashboard-login: name of the login (default dashboard_reader)")
     args = parser.parse_args()
 
     if args.command == "serve":
@@ -173,6 +178,29 @@ def main() -> int:
                 """SELECT count(*), count(*) FILTER (WHERE status = 'completed') FROM matches
                    WHERE season = ANY(%s)""", (configured_live_seasons(PROJECT_ROOT),)).fetchone()
             print(f"Live season now holds {status[0]} fixtures, {status[1]} with results.")
+            return 0
+
+        if args.command == "create-dashboard-login":
+            import shutil
+            import subprocess
+            from .dashboard_login import LoginError, create_dashboard_login
+            try:
+                login = create_dashboard_login(conn, url, args.role)
+            except (LoginError, psycopg.Error) as error:
+                print(f"Login not set up: {error}", file=sys.stderr)
+                return 1
+            done = "Created" if login["created"] else "Gave a new password to"
+            print(f"{done} the read-only login {login['role']}. It may read {len(login['reads'])} tables and "
+                  f"views ({', '.join(login['reads'])}) and nothing else; a test delete was refused.")
+            if shutil.which("pbcopy"):
+                subprocess.run(["pbcopy"], input=login["address"], text=True, check=True)
+                print("Its address is on your clipboard. Paste it into Render as DATABASE_URL, then clear "
+                      "the clipboard with: pbcopy < /dev/null")
+            else:
+                print("No clipboard tool found, so here is its address. Paste it only into Render:")
+                print(login["address"])
+            if not login["created"]:
+                print("The old password no longer works: update DATABASE_URL in Render.")
             return 0
 
         if args.command == "export-live":

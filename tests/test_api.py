@@ -3,15 +3,21 @@
 Round 11 (10 matches) kicks off at 14:00 UTC on Saturday 31 October 2026.
 """
 import os
+import subprocess
+import sys
 from contextlib import contextmanager
 from datetime import datetime, timedelta, timezone
+from uuid import uuid4
 
 import psycopg
 import pytest
 from fastapi.testclient import TestClient
 from live_helpers import add_snapshot, round_kickoff, season, snapshot_name, write_snapshot
+from psycopg import sql
+from psycopg.conninfo import conninfo_to_dict
 
-from soccer_forecasting.api import ATTRIBUTION, create_app, read_only_connection
+from soccer_forecasting.api import ATTRIBUTION, DASHBOARD_READS, create_app, read_only_connection
+from soccer_forecasting.dashboard_login import LoginError, create_dashboard_login
 from soccer_forecasting.forecasting import forecast_day
 from soccer_forecasting.live_loading import load_live
 
@@ -20,11 +26,16 @@ MORNING_11 = datetime(2026, 10, 31, 6, 0, tzinfo=UTC)
 DAY_11 = MORNING_11.date()
 
 
-def read_only_factory(db):
-    """The app's own connection code, pointed at the db fixture's test schema."""
+def schema_url(db):
+    """TEST_DATABASE_URL, pointed at the db fixture's test schema."""
     schema = db.execute("SHOW search_path").fetchone()[0]
     separator = "&" if "?" in os.environ["TEST_DATABASE_URL"] else "?"
-    return read_only_connection(f"{os.environ['TEST_DATABASE_URL']}{separator}options=-csearch_path%3D{schema}")
+    return f"{os.environ['TEST_DATABASE_URL']}{separator}options=-csearch_path%3D{schema}"
+
+
+def read_only_factory(db):
+    """The app's own connection code, pointed at the db fixture's test schema."""
+    return read_only_connection(schema_url(db))
 
 
 def client(db, root, now):
@@ -138,16 +149,30 @@ def test_dashboard_shows_forecasts_attribution_and_escapes_names(forecasted):
     assert "Arsenal &lt;b&gt;FC&lt;/b&gt;" in html and "<b>FC</b>" not in html
 
 
-def test_database_down_gives_503(forecasted):
-    db, root = forecasted
+@contextmanager
+def broken():
+    raise psycopg.OperationalError('connection to server at "ep-secret-host.example" failed: '
+                                   'password authentication failed for user "neondb_owner"')
+    yield
 
-    @contextmanager
-    def broken():
-        raise psycopg.OperationalError("connection refused")
-        yield
 
-    api = TestClient(create_app(root, connect=broken, now=lambda: MORNING_11))
-    assert api.get("/health").status_code == 503
+def test_database_down_gives_503_without_database_details(forecasted):
+    _, root = forecasted
+    response = TestClient(create_app(root, connect=broken, now=lambda: MORNING_11)).get("/health")
+    assert response.status_code == 503
+    assert "ep-secret-host" not in response.text and "neondb_owner" not in response.text
+
+
+def test_healthz_answers_without_the_database(project_copy):
+    response = TestClient(create_app(project_copy, connect=broken)).get("/healthz")
+    assert response.status_code == 200 and response.json() == {"status": "ok"}
+
+
+def test_a_malformed_address_is_refused_without_being_shown(project_copy, monkeypatch):
+    monkeypatch.setenv("DATABASE_URL", "postgresql//neondb_owner:pw-hidden-91c3@ep-x.neon.tech/neondb")
+    with pytest.raises(RuntimeError, match="not a valid database address") as caught:
+        create_app(project_copy)
+    assert "pw-hidden-91c3" not in str(caught.value)
 
 
 def test_a_match_moved_after_its_forecast_is_not_scored(forecasted):
@@ -162,3 +187,107 @@ def test_a_match_moved_after_its_forecast_is_not_scored(forecasted):
     write_snapshot(root, snapshot_name(later), payload, later.isoformat())
     load_live(db, root)
     assert client(db, root, later).get("/performance").json()["matches"] == 9
+
+
+# --- the public dashboard's read-only login ----------------------------------------
+
+@pytest.fixture
+def login_names(db):
+    """Unique login names for a test. Logins belong to the whole server, so they are removed afterwards."""
+    if not db.execute("SELECT rolsuper OR rolcreaterole FROM pg_roles WHERE rolname = current_user").fetchone()[0]:
+        pytest.skip("the test database user cannot create logins")
+    names = []
+    yield names
+    for name in reversed(list(dict.fromkeys(names))):
+        if db.execute("SELECT 1 FROM pg_roles WHERE rolname = %s", (name,)).fetchone():
+            role = sql.Identifier(name)
+            # The creator may take on the login's privileges, then remove everything it holds or owns.
+            db.execute(sql.SQL("GRANT {} TO CURRENT_USER").format(role))
+            db.execute(sql.SQL("DROP OWNED BY {}").format(role))
+            db.execute(sql.SQL("DROP ROLE {}").format(role))
+
+
+def new_name(names, prefix="dashboard_reader"):
+    names.append(f"{prefix}_{uuid4().hex[:8]}")
+    return names[-1]
+
+
+def test_every_page_works_under_the_read_only_login(forecasted, login_names):
+    db, root = forecasted
+    login = create_dashboard_login(db, schema_url(db), new_name(login_names))
+    assert login["created"] and login["write_refused"] and login["reads"] == list(DASHBOARD_READS)
+
+    as_reader = TestClient(create_app(root, connect=read_only_connection(login["address"]), now=lambda: MORNING_11))
+    as_owner = client(db, root, MORNING_11)
+    match_id = db.execute("SELECT min(match_id) FROM predictions").fetchone()[0]
+    for path in ("/health", "/forecasts?date=2026-10-31", "/forecasts/upcoming", "/fixtures/upcoming",
+                 f"/matches/{match_id}/forecasts", "/performance"):
+        response = as_reader.get(path)
+        assert response.status_code == 200, path
+        assert response.json() == as_owner.get(path).json(), path
+    page = as_reader.get("/")
+    assert page.status_code == 200 and ATTRIBUTION in page.text
+
+
+def test_the_read_only_login_cannot_write_or_read_anything_else(forecasted, login_names):
+    db, _ = forecasted
+    login = create_dashboard_login(db, schema_url(db), new_name(login_names))
+    with psycopg.connect(login["address"], autocommit=True) as reader:
+        reader.execute("SET default_transaction_read_only = off")  # what an attacker would try first
+        for statement in ("DELETE FROM predictions", "UPDATE teams SET team_name = 'x'",
+                          "CREATE TABLE stolen (x int)", "SELECT * FROM live_download_files",
+                          "SELECT * FROM model_files", "SELECT * FROM match_observations"):
+            with pytest.raises(psycopg.errors.InsufficientPrivilege):
+                reader.execute(statement)
+    assert db.execute("SELECT count(*) FROM predictions").fetchone()[0] == 10
+
+
+def test_running_again_gives_a_new_password_and_the_old_one_stops_working(forecasted, login_names):
+    db, _ = forecasted
+    name = new_name(login_names)
+    first = create_dashboard_login(db, schema_url(db), name)
+    second = create_dashboard_login(db, schema_url(db), name)
+    assert first["created"] and not second["created"] and first["address"] != second["address"]
+    with pytest.raises(psycopg.OperationalError):
+        psycopg.connect(first["address"]).close()
+    with psycopg.connect(second["address"]) as reader:
+        assert reader.execute("SELECT count(*) FROM predictions").fetchone()[0] == 10
+
+
+def test_running_again_removes_anything_granted_by_hand(forecasted, login_names):
+    db, _ = forecasted
+    name = new_name(login_names)
+    create_dashboard_login(db, schema_url(db), name)
+    db.execute(sql.SQL("GRANT SELECT ON live_download_files TO {}").format(sql.Identifier(name)))
+    create_dashboard_login(db, schema_url(db), name)
+    assert not db.execute("SELECT has_table_privilege(%s, 'live_download_files', 'SELECT')", (name,)).fetchone()[0]
+
+
+def test_a_login_with_more_powers_is_left_alone(forecasted, login_names):
+    db, _ = forecasted
+    group, name = new_name(login_names, "admins"), new_name(login_names)
+    db.execute(sql.SQL("CREATE ROLE {}").format(sql.Identifier(group)))
+    db.execute(sql.SQL("CREATE ROLE {} LOGIN IN ROLE {}").format(sql.Identifier(name), sql.Identifier(group)))
+    with pytest.raises(LoginError, match="more powers"):
+        create_dashboard_login(db, schema_url(db), name)
+    assert not db.execute("SELECT has_table_privilege(%s, 'predictions', 'SELECT')", (name,)).fetchone()[0]
+
+
+def test_the_command_puts_the_address_on_the_clipboard_never_on_screen(forecasted, login_names, tmp_path):
+    db, _ = forecasted
+    name = new_name(login_names)
+    tools, clipboard = tmp_path / "bin", tmp_path / "clipboard"
+    tools.mkdir()
+    (tools / "pbcopy").write_text(f'#!/bin/sh\ncat > "{clipboard}"\n')
+    (tools / "pbcopy").chmod(0o755)
+    env = {k: v for k, v in os.environ.items() if k != "FOOTBALL_DATA_API_KEY"}
+    env.update(DATABASE_URL=schema_url(db), PATH=f"{tools}{os.pathsep}{env.get('PATH', '')}")
+    result = subprocess.run([sys.executable, "-m", "soccer_forecasting", "create-dashboard-login", "--role", name],
+                            env=env, capture_output=True, text=True, timeout=60)
+    assert result.returncode == 0, result.stderr
+    address = clipboard.read_text()
+    password = conninfo_to_dict(address)["password"]
+    assert len(password) >= 40 and password not in result.stdout + result.stderr
+    assert "on your clipboard" in result.stdout
+    with psycopg.connect(address) as reader:
+        assert reader.execute("SELECT count(*) FROM predictions").fetchone()[0] == 10
