@@ -60,6 +60,8 @@ def main() -> int:
                         help="fetch-live: season start year, e.g. 2026 for 2026/27 (default: current)")
     parser.add_argument("--date", help="predict: match day as YYYY-MM-DD (default: today in London)")
     parser.add_argument("--preview", action="store_true", help="predict: show forecasts without saving them")
+    parser.add_argument("--if-needed", action="store_true",
+                        help="daily: do nothing if a daily run already succeeded today (London date)")
     parser.add_argument("--port", type=int, default=8000, help="serve: port on this computer (default 8000)")
     parser.add_argument("--role", default="dashboard_reader",
                         help="create-dashboard-login: name of the login (default dashboard_reader)")
@@ -233,7 +235,11 @@ def main() -> int:
             started = datetime.now(timezone.utc)
             try:
                 if args.command == "daily":
-                    result = run_daily(conn, PROJECT_ROOT)
+                    result = run_daily(conn, PROJECT_ROOT, if_needed=args.if_needed)
+                    if result.already_done_at is not None:
+                        print(f"Today's daily run ({result.day:%a %d %b %Y}, London) already succeeded at "
+                              f"{result.already_done_at:%H:%M} UTC; nothing to do.")
+                        return 0
                 else:
                     day = date.fromisoformat(args.date) if args.date else london_date(started, zone)
                     try:

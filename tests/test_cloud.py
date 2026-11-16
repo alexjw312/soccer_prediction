@@ -228,8 +228,10 @@ def test_export_refuses_a_folder_that_differs_from_the_database(live):
 
 # --- what reaches a public log ------------------------------------------------------
 
-def run_command(database_url, *command):
+def run_command(database_url, *command, key=None):
     env = {k: v for k, v in os.environ.items() if k != "FOOTBALL_DATA_API_KEY"}
+    if key is not None:
+        env["FOOTBALL_DATA_API_KEY"] = key
     return subprocess.run([sys.executable, "-m", "soccer_forecasting", *command],
                           env={**env, "DATABASE_URL": database_url}, capture_output=True, text=True, timeout=60)
 
@@ -242,6 +244,20 @@ def test_a_failed_connection_never_prints_the_password(test_database_url):
     assert result.returncode == 1
     assert "Could not connect to the database" in result.stderr
     assert "pw-that-must-not-appear-4c1e" not in result.stdout + result.stderr
+
+
+def test_the_scheduled_command_stops_at_once_when_today_already_succeeded(db, test_database_url):
+    schema = db.execute("SHOW search_path").fetchone()[0]
+    separator = "&" if "?" in test_database_url else "?"
+    today = datetime.now(ZoneInfo("Europe/London")).date()
+    db.execute("""INSERT INTO job_runs (job, started_at, finished_at, status, details)
+                  VALUES ('daily', now(), now(), 'succeeded', %s::jsonb)""", (json.dumps({"day": today.isoformat()}),))
+    # A made-up key: if the command did not stop, its download would be refused and nothing saved.
+    result = run_command(f"{test_database_url}{separator}options=-csearch_path%3D{schema}", "daily", "--if-needed",
+                         key="made-up-key-for-tests")
+    assert result.returncode == 0, result.stderr
+    assert "already succeeded" in result.stdout
+    assert count(db, "SELECT count(*) FROM job_runs") == 1
 
 
 @pytest.mark.parametrize("address", [
@@ -283,17 +299,24 @@ def test_runs_on_a_schedule_and_by_hand_never_two_at_once(workflow):
     assert workflow["concurrency"]["cancel-in-progress"] is False
 
 
+def scheduled_london_times(workflow, day):
+    [entry] = workflow["on"]["schedule"]
+    minute, hours, *rest = entry["cron"].split()
+    assert rest == ["*", "*", "*"]
+    first, last = map(int, hours.split("-"))
+    return int(minute), [datetime.combine(day, time(h, int(minute)), tzinfo=UTC).astimezone(ZoneInfo("Europe/London"))
+                         for h in range(first, last + 1)]
+
+
 # Winter and summer days, including the Sunday the clocks go forward.
 @pytest.mark.parametrize("day", [date(2026, 8, 22), date(2026, 11, 21), date(2027, 3, 28), date(2027, 5, 23)])
 def test_scheduled_runs_fall_on_match_day_before_the_first_kickoff(workflow, day):
-    schedule = workflow["on"]["schedule"]
-    assert len(schedule) == 2
-    for entry in schedule:
-        minute, hour, *rest = entry["cron"].split()
-        assert rest == ["*", "*", "*"]
-        assert int(minute) not in (0, 30)  # GitHub's busiest minutes, when scheduled runs start late
-        london = datetime.combine(day, time(int(hour), int(minute)), tzinfo=UTC).astimezone(ZoneInfo("Europe/London"))
-        assert london.date() == day and time(5) <= london.time() < time(12)
+    minute, runs = scheduled_london_times(workflow, day)
+    assert minute not in (0, 30)  # GitHub's busiest minutes, when scheduled runs start late
+    # Many chances, because GitHub starts scheduled runs hours late or skips them.
+    assert len(runs) >= 10
+    assert runs[0].time() <= time(1, 30)
+    assert all(run.date() == day and run.time() < time(12, 30) for run in runs)
 
 
 def test_secrets_reach_only_the_two_steps_that_need_them(workflow):
@@ -315,7 +338,8 @@ def test_read_only_permissions_and_pinned_actions(workflow):
 def test_runs_the_same_commands_as_on_a_mac(workflow):
     # An editable install, because the project finds config/ and sql/ next to its source code.
     assert [s["run"] for s in steps(workflow) if "run" in s] == [
-        "python -m pip install -e .", "python -m soccer_forecasting init-db", "python -m soccer_forecasting daily"]
+        "python -m pip install -e .", "python -m soccer_forecasting init-db",
+        "python -m soccer_forecasting daily --if-needed"]
 
 
 def test_the_test_workflow_runs_the_whole_suite_against_postgres_16(tests_workflow):

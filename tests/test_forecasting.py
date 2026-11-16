@@ -175,6 +175,48 @@ def test_daily_downloads_loads_forecasts_and_logs(trained):
     assert status == "succeeded" and details["inserted"] == 10 and details["snapshots_loaded"] == 1
 
 
+def test_daily_if_needed_does_nothing_after_todays_success(trained):
+    db, root = trained
+    downloads = []
+
+    def fetch(project_root, season_year):
+        moment = MORNING_11 - timedelta(minutes=5) + timedelta(hours=len(downloads))
+        downloads.append(moment)
+        add_snapshot(project_root, moment, finished_rounds=10)
+        return {"snapshot": snapshot_name(moment)}
+
+    first = run_daily(db, root, now=MORNING_11, fetch=fetch, if_needed=True)
+    assert first.inserted == 10 and first.already_done_at is None
+    later = run_daily(db, root, now=MORNING_11 + timedelta(hours=1), fetch=fetch, if_needed=True)
+    assert later.already_done_at is not None and later.inserted == 0
+    assert len(downloads) == 1 and count(db, "SELECT count(*) FROM job_runs") == 1
+    # Without --if-needed it runs again, and saved forecasts stay as they were.
+    forced = run_daily(db, root, now=MORNING_11 + timedelta(hours=2), fetch=fetch)
+    assert len(downloads) == 2 and forced.inserted == 0 and forced.already_saved == 10
+
+
+def test_daily_if_needed_still_runs_after_a_failure_or_on_a_new_day(trained):
+    db, root = trained
+
+    def failing_fetch(project_root, season_year):
+        raise LiveSourceError("HTTP 429 (rate limit reached)")
+
+    def fetch_at(moment):
+        def fetch(project_root, season_year):
+            add_snapshot(project_root, moment, finished_rounds=10)
+            return {"snapshot": snapshot_name(moment)}
+        return fetch
+
+    with pytest.raises(LiveSourceError):
+        run_daily(db, root, now=MORNING_11, fetch=failing_fetch, if_needed=True)
+    retried = run_daily(db, root, now=MORNING_11 + timedelta(hours=1),
+                        fetch=fetch_at(MORNING_11 + timedelta(minutes=55)), if_needed=True)
+    assert retried.already_done_at is None and retried.inserted == 10
+    next_day = run_daily(db, root, now=MORNING_11 + timedelta(days=1),
+                         fetch=fetch_at(MORNING_11 + timedelta(days=1, minutes=-5)), if_needed=True)
+    assert next_day.already_done_at is None and next_day.day == DAY_11 + timedelta(days=1)
+
+
 def test_daily_failure_is_logged(trained):
     db, root = trained
 

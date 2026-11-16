@@ -55,6 +55,7 @@ class ForecastDay:
     warnings: list = field(default_factory=list)
     inserted: int = 0
     already_saved: int = 0
+    already_done_at: datetime | None = None  # daily --if-needed: when today's successful run finished
 
 
 def london_date(moment: datetime, zone: str) -> date:
@@ -186,12 +187,27 @@ def record_job(conn, job: str, started: datetime, status: str, details: dict) ->
                  (job, started, datetime.now(timezone.utc), status, json.dumps(details, default=str)))
 
 
-def run_daily(conn, root: Path, now: datetime | None = None, fetch=fetch_snapshot) -> ForecastDay:
-    """Download, load, then forecast today's matches. Every run is logged in job_runs."""
+def daily_succeeded(conn, day: date) -> datetime | None:
+    """When the last successful daily run for this London match day finished, if there was one."""
+    return conn.execute("""SELECT max(finished_at) FROM job_runs
+                           WHERE job = 'daily' AND status = 'succeeded' AND details->>'day' = %s""",
+                        (day.isoformat(),)).fetchone()[0]
+
+
+def run_daily(conn, root: Path, now: datetime | None = None, fetch=fetch_snapshot,
+              if_needed: bool = False) -> ForecastDay:
+    """Download, load, then forecast today's matches. Every run is logged in job_runs.
+
+    With if_needed, nothing happens if a daily run already succeeded today (London date). The
+    GitHub schedule starts many runs each morning, because GitHub often starts them hours late or
+    skips some; the first one to start does the work, and the rest stop here.
+    """
     started = datetime.now(timezone.utc)
     now = now or started
     zone = live_config(root)["local_timezone"]
     today = london_date(now, zone)
+    if if_needed and (done := daily_succeeded(conn, today)) is not None:
+        return ForecastDay(day=today, already_done_at=done)
     try:
         snapshot = fetch(root, season_start_year(today))
         loaded = load_live(conn, root)

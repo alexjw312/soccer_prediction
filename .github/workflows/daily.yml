@@ -5,11 +5,14 @@
 # save forecasts for today's London matches. The database is the only thing
 # that lasts between runs, so it also keeps each download and the model file.
 #
-# GitHub's schedule is in UTC and can start late when GitHub is busy, mostly at
-# the top of the hour, hence the odd minutes. 05:17 and 10:47 UTC are the same
-# times in London in winter and an hour later in summer, both before the usual
-# first kickoff (12:30). The second run is a retry: it adds nothing if the first
-# saved the day's forecasts. "Run workflow" on the Actions tab starts one by hand.
+# GitHub's schedule is in UTC, and GitHub starts scheduled runs late when it is
+# busy, sometimes by hours, and sometimes skips them: in the first days of this
+# repository, runs started 2 to 8 hours late. So a run is scheduled every hour
+# from 00:17 to 11:17 UTC (the same in London in winter, an hour later in summer,
+# all before the usual first kickoff at 12:30), at odd minutes because the top of
+# the hour is busiest. The first run to start does the work; with --if-needed the
+# rest see that today's run succeeded and stop at once. "Run workflow" on the
+# Actions tab starts one by hand.
 #
 # Secrets (Settings > Secrets and variables > Actions): DATABASE_URL, the Neon
 # direct connection string, and FOOTBALL_DATA_API_KEY. Only the two steps that
@@ -19,8 +22,7 @@ name: Daily forecasts
 
 on:
   schedule:
-    - cron: "17 5 * * *"
-    - cron: "47 10 * * *"
+    - cron: "17 0-11 * * *"
   workflow_dispatch:
 
 permissions:
@@ -59,4 +61,4 @@ jobs:
         env:
           DATABASE_URL: ${{ secrets.DATABASE_URL }}
           FOOTBALL_DATA_API_KEY: ${{ secrets.FOOTBALL_DATA_API_KEY }}
-        run: python -m soccer_forecasting daily
+        run: python -m soccer_forecasting daily --if-needed
