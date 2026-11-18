@@ -16,6 +16,9 @@ Every downloaded file is also copied into the database (live_download_files),
 including snapshots loaded before that table existed, so the raw data
 survives on computers that start empty. export_live writes the copies back
 out as snapshot folders.
+
+After loading, each club's manager and squad are copied from the newest
+stored teams file onto teams (update_club_people), for the dashboard.
 """
 import hashlib
 import json
@@ -295,7 +298,46 @@ def _load_one(conn, root: Path, folder: Path, config: dict, competition: str) ->
     return summary
 
 
+def _player(entry: dict) -> dict:
+    return {"name": str(entry.get("name") or "").strip(), "position": entry.get("position"),
+            "date_of_birth": entry.get("dateOfBirth"), "nationality": entry.get("nationality")}
+
+
+def update_club_people(conn, provider: str) -> int:
+    """Copy each club's manager and squad from the newest stored teams file onto teams.
+
+    Returns how many clubs were updated. The values are display data for the dashboard
+    and no forecast uses them, so a teams file that cannot be read changes nothing
+    rather than stopping the daily job. Clubs without a row in team_aliases are skipped.
+    """
+    newest = conn.execute(
+        """SELECT snapshot, content FROM live_download_files WHERE provider = %s AND file_name = 'teams.json'
+           ORDER BY snapshot DESC LIMIT 1""", (provider,)).fetchone()
+    if newest is None:
+        return 0
+    snapshot, content = newest
+    try:
+        clubs = json.loads(bytes(content))["teams"]
+    except (ValueError, KeyError, TypeError):
+        return 0
+    updated = 0
+    for club in clubs if isinstance(clubs, list) else []:
+        if not isinstance(club, dict) or club.get("id") is None:
+            continue
+        coach = club.get("coach") if isinstance(club.get("coach"), dict) else {}
+        squad = [_player(p) for p in club.get("squad") or [] if isinstance(p, dict) and p.get("name")]
+        updated += conn.execute(
+            """UPDATE teams t SET coach_name = %s, coach_nationality = %s, squad = %s::jsonb, squad_snapshot = %s
+               FROM team_aliases a WHERE a.provider = %s AND a.alias = %s AND a.team_id = t.team_id""",
+            (str(coach.get("name") or "").strip() or None, coach.get("nationality") or None, json.dumps(squad),
+             snapshot, provider, str(club["id"]))).rowcount
+    return updated
+
+
 def load_live(conn, root: Path) -> list[SnapshotSummary]:
     config = live_config(root)
     competition = read_json(root / "config" / "milestone0.json")["competition"]
-    return [_load_one(conn, root, folder, config, competition) for folder in snapshot_folders(root)]
+    summaries = [_load_one(conn, root, folder, config, competition) for folder in snapshot_folders(root)]
+    with conn.transaction():
+        update_club_people(conn, config["provider"])
+    return summaries

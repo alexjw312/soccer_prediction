@@ -73,7 +73,7 @@ Register for a free key at football-data.org and put it in .env as one line: `FO
 
 fetch-live makes two requests (the free plan allows 10 a minute) and saves a snapshot of this season's matches and teams under data/live/football-data-org/<UTC time>/ with a manifest of URLs, times and hashes. Snapshots are never overwritten and stay out of Git because football-data.org's terms govern their data.
 
-load-live loads every snapshot not yet loaded, oldest first, each in its own transaction, and keeps a copy of every downloaded file in live_download_files. New fixtures are inserted and tied to their football-data.org id; unplayed fixtures take the newest date, kickoff and status; a completed result never changes afterwards, and a different score stops the load for a person to check. Every fixture's state in every snapshot is kept in match_observations, and the result_first_seen view gives the time each result was first downloaded. Unknown teams, unknown statuses, changed files and out-of-order snapshots stop the load. Match dates are London dates of the UTC kickoff. export-live writes the stored downloads back out under data/live.
+load-live loads every snapshot not yet loaded, oldest first, each in its own transaction, and keeps a copy of every downloaded file in live_download_files. New fixtures are inserted and tied to their football-data.org id; unplayed fixtures take the newest date, kickoff and status; a completed result never changes afterwards, and a different score stops the load for a person to check. Every fixture's state in every snapshot is kept in match_observations, and the result_first_seen view gives the time each result was first downloaded. Unknown teams, unknown statuses, changed files and out-of-order snapshots stop the load. Match dates are London dates of the UTC kickoff. After loading, each club's manager and squad are copied from the newest stored teams file onto teams for the dashboard (`update-clubs` does only this step). export-live writes the stored downloads back out under data/live.
 
 ## Forecast real matches
 
@@ -98,7 +98,12 @@ Then open http://127.0.0.1:8000 for the dashboard or http://127.0.0.1:8000/docs 
 
 | Address | What it returns |
 | --- | --- |
-| / | Dashboard: upcoming fixtures with their forecasts once published, recent forecasts next to results, performance so far, data freshness |
+| / | Fixtures tab: one match day at a time (?date=YYYY-MM-DD picks another), with kickoff times or scores |
+| /match/{id} | One match: date, kickoff, stadium, managers, its forecast, each team's last five, the last five meetings, what the model saw |
+| /team/{id} | One club: manager, stadium, next match, its part of the table, results and fixtures, form from its latest forecast, squad |
+| /table | Table tab: the league table from this season's results |
+| /model-performance | Performance tab: live scores, every scored forecast, and the one-time final test |
+| /how-it-works | How it works tab: the pipeline, the model and the rules, in plain words |
 | /health | Database status, newest download and its age, deployment model run, last job run |
 | /healthz | Always {"status": "ok"}, without touching the database: for the host's health checks |
 | /forecasts?date=YYYY-MM-DD | Saved forecasts for one match day (default: today in London) |
@@ -107,7 +112,7 @@ Then open http://127.0.0.1:8000 for the dashboard or http://127.0.0.1:8000/docs 
 | /matches/{id}/forecasts | Every forecast saved for one match |
 | /performance | Log loss and accuracy of forecasts for matches played on their forecast day, against historical shares and one third each |
 
-The service only reads saved forecasts and never recomputes one. Its database session is read-only, and every response carries the attribution "Football data provided by the Football-Data.org API".
+The web pages are built in src/soccer_forecasting/dashboard.py, with the font (Geist, SIL Open Font License) served from the package, so they load nothing from other sites. The service only reads saved forecasts and never recomputes one. Its database session is read-only, and every response carries the attribution "Football data provided by the Football-Data.org API".
 
 ## The daily job on GitHub Actions with Neon
 
@@ -154,4 +159,4 @@ The command creates the login with a long random password, checks that a delete 
 
 ## Each summer: the new season
 
-config/live.json names the live season (2026-27). Before the next season starts, it needs the new season and start year, and any newly promoted clubs need their football-data.org ids in config/team_aliases.csv. Until then, the daily job stops with an error rather than load another season's data.
+config/live.json names the live season (2026-27). Before the next season starts, it needs the new season and start year, and any newly promoted clubs need their football-data.org ids in config/team_aliases.csv and their stadium and town in config/stadiums.csv (a test fails until each club has one). Until then, the daily job stops with an error rather than load another season's data.

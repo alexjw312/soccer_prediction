@@ -53,7 +53,7 @@ flowchart TB
 
 | Table or view | Grain | Purpose |
 | --- | --- | --- |
-| teams, team_aliases | one club; one provider name or id per club | Canonical clubs, and the mapping from OpenFootball names and football-data.org ids |
+| teams, team_aliases | one club; one provider name or id per club | Canonical clubs, and the mapping from OpenFootball names and football-data.org ids. teams also holds each live club's manager and squad, copied from the newest teams download for the dashboard |
 | source_files | one loaded file | Provenance: provider, commit or snapshot, path, SHA-256, size, retrieval time |
 | matches | one league fixture in one season | Teams, date, kickoff, status, final score; a rescheduled match stays one row |
 | team_matches (view) | one team in one completed match | Each match seen from both sides, the shape window functions need |
@@ -69,7 +69,7 @@ flowchart TB
 | job_runs | one run of a job | Status, timing, details or error |
 | live_download_files | one file of one download | The raw responses, kept privately; hashes computed by the database |
 
-The schema lives in [sql/001_schema.sql](../sql/001_schema.sql) to [sql/005_stored_files.sql](../sql/005_stored_files.sql), with the reasoning for each table in comments.
+The schema lives in [sql/001_schema.sql](../sql/001_schema.sql) to [sql/006_club_people.sql](../sql/006_club_people.sql), with the reasoning for each table in comments.
 
 ## Time and leakage
 
@@ -94,6 +94,6 @@ Four kinds of time are kept apart: when a match was played (event time), when it
 ## Reliability and cost
 
 - **Late or missing scheduled runs:** twelve morning runs, each harmless when the work is already done.
-- **Failures are visible:** a red run on GitHub (and an email, with notifications on), a failed row in `job_runs`, and the dashboard's freshness badge turns from "data ok" to "stale".
+- **Failures are visible:** a red run on GitHub (and an email, with notifications on), a failed row in `job_runs`, and the dashboard's header changes from "Data updated" to a warning that the data is too old.
 - **Free plans:** GitHub Actions is free for public repositories. Neon gives 1 GB of storage and 100 compute-hours a month; the database sleeps after 5 idle minutes, and Render's health checks never touch it. Render gives 750 instance-hours a month; the service sleeps after 15 quiet minutes.
 - **Storage:** one download a day, about 56 KB of raw files and 380 observation rows, keeps the database well within 1 GB for several seasons.

@@ -49,15 +49,31 @@ def season(finished_rounds=10):
     return {"matches": matches}
 
 
-def write_snapshot(root, name, payload, retrieved, season_year=2026):
+def club_people(coach_prefix="Coach"):
+    """A teams file: every club with an invented manager and a four-player squad."""
+    positions = ("Goalkeeper", "Defence", "Midfield", "Offence")
+    return {"teams": [{"id": club_id, "name": name,
+                       "coach": {"name": f"{coach_prefix} {club_id}", "nationality": "England"},
+                       "squad": [{"id": club_id * 10 + i, "name": f"Player {club_id}-{i}", "position": position,
+                                  "dateOfBirth": f"{1995 + i}-06-15", "nationality": "England"}
+                                 for i, position in enumerate(positions)]}
+                      for club_id, name in club_ids()]}
+
+
+def write_snapshot(root, name, payload, retrieved, season_year=2026, teams=None):
+    """A snapshot folder with matches.json, and teams.json when teams is given."""
     folder = root / "data" / "live" / "football-data-org" / name
     folder.mkdir(parents=True)
-    data = json.dumps(payload).encode()
-    (folder / "matches.json").write_bytes(data)
-    (folder / "manifest.json").write_text(json.dumps({
-        "provider": "football-data.org", "season": season_year,
-        "files": [{"file": "matches.json", "endpoint": "/competitions/PL/matches?season=2026",
-                   "retrieved_at_utc": retrieved, "bytes": len(data), "sha256": hashlib.sha256(data).hexdigest()}]}))
+    files = []
+    for file_name, content, endpoint in (("matches.json", payload, "matches"), ("teams.json", teams, "teams")):
+        if content is None:
+            continue
+        data = json.dumps(content).encode()
+        (folder / file_name).write_bytes(data)
+        files.append({"file": file_name, "endpoint": f"/competitions/PL/{endpoint}?season=2026",
+                      "retrieved_at_utc": retrieved, "bytes": len(data), "sha256": hashlib.sha256(data).hexdigest()})
+    (folder / "manifest.json").write_text(json.dumps({"provider": "football-data.org", "season": season_year,
+                                                      "files": files}))
     return folder
 
 
@@ -65,5 +81,5 @@ def snapshot_name(moment: datetime) -> str:
     return moment.strftime("%Y%m%dT%H%M%SZ")
 
 
-def add_snapshot(root, moment: datetime, finished_rounds: int):
-    write_snapshot(root, snapshot_name(moment), season(finished_rounds), moment.isoformat())
+def add_snapshot(root, moment: datetime, finished_rounds: int, teams=None):
+    write_snapshot(root, snapshot_name(moment), season(finished_rounds), moment.isoformat(), teams=teams)

@@ -28,5 +28,8 @@ dev = ["pytest==9.2.0", "httpx2==2.16.0", "pyyaml==6.0.3"]
 [tool.setuptools.packages.find]
 where = ["src"]
 
+[tool.setuptools.package-data]
+soccer_forecasting = ["static/fonts/*"]
+
 [tool.pytest.ini_options]
 testpaths = ["tests"]

@@ -90,3 +90,13 @@ def trained(ready):
     db, root = ready
     train_deployment(db, root)
     return db, root
+
+
+@pytest.fixture
+def forecasted(trained):
+    """Round 11's forecasts, saved on its match day (Saturday 31 October 2026) at 06:00 UTC."""
+    from soccer_forecasting.forecasting import forecast_day
+    db, root = trained
+    morning = datetime(2026, 10, 31, 6, 0, tzinfo=timezone.utc)
+    forecast_day(db, root, morning.date(), morning, save=True)
+    return db, root

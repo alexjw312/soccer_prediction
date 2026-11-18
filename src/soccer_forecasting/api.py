@@ -5,7 +5,9 @@ forecast, so what you see is exactly what was recorded before kickoff. The
 database session is set to read-only, so a bug here cannot change any data.
 
 Run it with: python -m soccer_forecasting serve, then open http://127.0.0.1:8000
-(the dashboard) or http://127.0.0.1:8000/docs (the API's own documentation).
+(the dashboard) or http://127.0.0.1:8000/docs (the API's own documentation). The
+dashboard's pages (/, /table, /model-performance, /how-it-works, /match/{id} and
+/team/{id}) are built in dashboard.py; the JSON routes are here.
 
 In public (Render, see render.yaml) it runs as uvicorn soccer_forecasting.api:create_app
 --factory, with a login that may only read DASHBOARD_READS (see dashboard_login.py).
@@ -17,18 +19,20 @@ import math
 import os
 from contextlib import contextmanager
 from datetime import date, datetime, timezone
-from html import escape
 from pathlib import Path
 from zoneinfo import ZoneInfo
 
 import psycopg
 from fastapi import Depends, FastAPI, HTTPException, Query
 from fastapi.responses import HTMLResponse
+from fastapi.staticfiles import StaticFiles
 from psycopg.conninfo import conninfo_to_dict
 from psycopg.rows import dict_row
 
-from . import PROJECT_ROOT
+from . import PROJECT_ROOT, dashboard
+from .dashboard import ATTRIBUTION
 from .env import load_env
+from .features import cutoff_offset_days
 from .live_loading import live_config
 from .loading import read_json
 
@@ -39,8 +43,7 @@ LOG = logging.getLogger(__name__)
 DASHBOARD_READS = ("job_runs", "matches", "model_runs", "prediction_results", "predictions",
                    "source_files", "teams")
 
-ATTRIBUTION = "Football data provided by the Football-Data.org API"
-HISTORY_CREDIT = "Historical results: OpenFootball football.json (CC0)"
+STATIC = Path(__file__).parent / "static"
 
 FORECAST_SQL = """
     SELECT r.prediction_id, r.match_id, h.team_name AS home, a.team_name AS away,
@@ -195,10 +198,7 @@ def create_app(root: Path = PROJECT_ROOT, connect=None, now=None) -> FastAPI:
                WHERE match_status = 'completed' AND on_forecast_date""").fetchall()
         if not settled:
             return {"matches": 0, "message": "No forecasted match has been played yet."}
-        shares = conn.execute(
-            """SELECT result, count(*)::float / sum(count(*)) OVER () AS share FROM matches
-               WHERE season = ANY(%s) AND status = 'completed' GROUP BY result""", (cohort,)).fetchall()
-        share = {r["result"]: r["share"] for r in shares}
+        share = dashboard.historical_shares(conn, cohort)
         picked = {"H": "p_home", "D": "p_draw", "A": "p_away"}
         hits = sum(max(picked, key=lambda k: r[picked[k]]) == r["result"] for r in settled)
         return {
@@ -216,80 +216,51 @@ def create_app(root: Path = PROJECT_ROOT, connect=None, now=None) -> FastAPI:
         """How saved forecasts have done on matches played on their forecast day."""
         return performance_info(conn)
 
-    @app.get("/", response_class=HTMLResponse)
-    def dashboard(conn=Depends(database)):
-        info, perf = health_info(conn), performance_info(conn)
-        fixtures = upcoming_fixtures_rows(conn, 20)
-        recent = conn.execute(FORECAST_SQL + """ WHERE r.match_status = 'completed' AND r.on_forecast_date
-                                                 ORDER BY r.kickoff_utc DESC LIMIT 20""").fetchall()
-        return dashboard_html(info, perf, fixtures, recent, zone)
+    final_test = dashboard.final_test_summary(root)
+    cutoff_days = cutoff_offset_days(root)
+    grounds = dashboard.stadiums(root)
+    app.mount("/static", StaticFiles(directory=STATIC), name="static")
+
+    @app.get("/", response_class=HTMLResponse, include_in_schema=False)
+    def fixtures(day: date | None = Query(None, alias="date"), conn=Depends(database)):
+        moment = now()
+        today = moment.astimezone(zone).date()
+        days = dashboard.match_days(conn, config["season"])
+        day = day or dashboard.pick_day(days, today)
+        return dashboard.fixtures_page(rows=dashboard.day_rows(conn, config["season"], day), days=days, day=day,
+                                       today=today, now=moment, zone=zone, season=config["season"],
+                                       info=health_info(conn))
+
+    @app.get("/table", response_class=HTMLResponse, include_in_schema=False)
+    def table(conn=Depends(database)):
+        return dashboard.table_page(table=dashboard.league_table(conn, config["season"]), season=config["season"],
+                                    info=health_info(conn), zone=zone)
+
+    @app.get("/model-performance", response_class=HTMLResponse, include_in_schema=False)
+    def performance_tab(conn=Depends(database)):
+        return dashboard.performance_page(perf=performance_info(conn), scored=dashboard.scored_forecasts(conn),
+                                          final=final_test, info=health_info(conn), zone=zone)
+
+    @app.get("/how-it-works", response_class=HTMLResponse, include_in_schema=False)
+    def how_it_works(conn=Depends(database)):
+        return dashboard.how_page(model=dashboard.deployed_model(conn), cutoff_days=cutoff_days,
+                                  max_age_hours=config["max_snapshot_age_hours"], info=health_info(conn), zone=zone)
+
+    @app.get("/team/{team_id}", response_class=HTMLResponse, include_in_schema=False)
+    def team_page(team_id: int, conn=Depends(database)):
+        team = dashboard.team_detail(conn, team_id, config["season"])
+        if team is None:
+            return HTMLResponse(dashboard.team_not_found_page(health_info(conn), zone), status_code=404)
+        return dashboard.team_page(team=team, table=dashboard.league_table(conn, config["season"]),
+                                   stadium=grounds.get(team["team_name"]), season=config["season"], now=now(),
+                                   zone=zone, info=health_info(conn))
+
+    @app.get("/match/{match_id}", response_class=HTMLResponse, include_in_schema=False)
+    def match_page(match_id: int, conn=Depends(database)):
+        match = dashboard.match_detail(conn, match_id)
+        if match is None:
+            return HTMLResponse(dashboard.not_found_page(health_info(conn), zone), status_code=404)
+        return dashboard.match_page(match=match, stadium=grounds.get(match["home"]), zone=zone,
+                                    info=health_info(conn))
 
     return app
-
-
-def _pct(value) -> str:
-    return f"{value:.0%}"
-
-
-def _when(moment, zone) -> str:
-    return moment.astimezone(zone).strftime("%a %d %b, %H:%M")
-
-
-def dashboard_html(info: dict, perf: dict, fixtures: list, recent: list, zone) -> str:
-    e = escape
-    fresh = (f"Latest download {e(_when(info['latest_snapshot_utc'], zone))} London time "
-             f"({info['latest_snapshot_age_hours']} hours ago)" if info["latest_snapshot_utc"] else "No live data yet")
-    status_class = "ok" if info["status"] == "ok" else "warn"
-
-    fixture_rows = "".join(
-        f"<tr><td>{e(_when(f['kickoff_utc'], zone))}</td><td>{e(f['home'])} v {e(f['away'])}</td>"
-        + (f"<td class=num>{_pct(f['p_home'])}</td><td class=num>{_pct(f['p_draw'])}</td>"
-           f"<td class=num>{_pct(f['p_away'])}</td>" if f["p_home"] is not None
-           else "<td colspan=3 class=muted>published on match day</td>")
-        + "</tr>" for f in fixtures) or "<tr><td colspan=5 class=muted>No upcoming fixtures loaded.</td></tr>"
-
-    result_names = {"H": "home win", "D": "draw", "A": "away win"}
-    recent_rows = "".join(
-        f"<tr><td>{e(_when(r['kickoff_utc'], zone))}</td><td>{e(r['home'])} {r['home_goals']}–{r['away_goals']} "
-        f"{e(r['away'])}</td><td class=num>{_pct(r['p_home'])}</td><td class=num>{_pct(r['p_draw'])}</td>"
-        f"<td class=num>{_pct(r['p_away'])}</td><td>{result_names[r['result']]}</td>"
-        f"<td class=num>{r['log_loss']:.3f}</td></tr>" for r in recent
-    ) or "<tr><td colspan=7 class=muted>No forecasted match has been played yet.</td></tr>"
-
-    if perf["matches"]:
-        performance = (f"<p>{perf['matches']} forecasted matches played. Log loss {perf['log_loss']:.3f}, "
-                       f"against {perf['baseline_log_loss']:.3f} for historical shares and "
-                       f"{perf['uniform_log_loss']:.3f} for one third each (lower is better). "
-                       f"Most likely outcome right: {_pct(perf['accuracy'])}.</p>"
-                       f"<p class=muted>{e(perf['note'])}</p>")
-    else:
-        performance = f"<p class=muted>{e(perf['message'])}</p>"
-
-    return f"""<!DOCTYPE html>
-<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Premier League match forecasts</title>
-<style>
- body {{ font: 15px/1.5 -apple-system, system-ui, sans-serif; max-width: 920px; margin: 2rem auto; padding: 0 1rem;
-        color: #1d1d1f; background: #fafafa; }}
- h1 {{ font-size: 1.6rem; margin-bottom: .2rem; }} h2 {{ font-size: 1.15rem; margin-top: 2rem; }}
- table {{ width: 100%; border-collapse: collapse; background: #fff; }}
- th, td {{ text-align: left; padding: .45rem .6rem; border-bottom: 1px solid #e5e5e5; }}
- th {{ font-weight: 600; font-size: .85rem; color: #555; }} .num {{ text-align: right; font-variant-numeric: tabular-nums; }}
- .muted {{ color: #777; }} .status {{ display: inline-block; padding: .1rem .5rem; border-radius: 1rem; font-size: .8rem; }}
- .ok {{ background: #e3f4e6; color: #1f6b2c; }} .warn {{ background: #fdf0d8; color: #8a5a00; }}
- footer {{ margin-top: 2.5rem; font-size: .8rem; color: #777; }}
-</style></head><body>
-<h1>Premier League match forecasts</h1>
-<p class=muted>Home win, draw and away win probabilities, made on match day before kickoff and never changed afterwards.</p>
-<p><span class="status {status_class}">data {e(info['status'])}</span> {fresh}. Model run {info['deployment_model_run'] or '–'}.</p>
-<h2>Upcoming fixtures</h2>
-<table><tr><th>Kickoff (London)</th><th>Match</th><th class=num>Home</th><th class=num>Draw</th><th class=num>Away</th></tr>
-{fixture_rows}</table>
-<h2>Recent forecasts and results</h2>
-<table><tr><th>Kickoff (London)</th><th>Result</th><th class=num>Home</th><th class=num>Draw</th><th class=num>Away</th>
-<th>Outcome</th><th class=num>Log loss</th></tr>
-{recent_rows}</table>
-<h2>Performance so far</h2>
-{performance}
-<footer>{e(ATTRIBUTION)}. {e(HISTORY_CREDIT)}. API documentation: <a href="/docs">/docs</a>.</footer>
-</body></html>"""

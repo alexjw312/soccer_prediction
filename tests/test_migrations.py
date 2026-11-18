@@ -25,6 +25,8 @@ def test_milestone_1_database_is_upgraded_without_reloading(db):
                       "DROP TABLE model_files", "DROP TABLE live_download_files", "DROP TABLE model_runs",
                       "DROP VIEW result_first_seen", "DROP TABLE match_observations", "DROP TABLE provider_matches",
                       "ALTER TABLE matches DROP COLUMN kickoff_utc",
+                      "ALTER TABLE teams DROP COLUMN coach_name, DROP COLUMN coach_nationality, DROP COLUMN squad, "
+                      "DROP COLUMN squad_snapshot",
                       "DROP VIEW fixture_features", "DROP TABLE team_form_snapshots", "DROP TABLE schema_migrations"):
         db.execute(statement)
 

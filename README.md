@@ -12,7 +12,7 @@ Home win, draw and away win probabilities for Premier League matches. Each forec
 
 - Every morning it downloads this season's fixtures and results from football-data.org and keeps every download.
 - On match day, before kickoff, it computes each team's recent form from results that had actually been downloaded by then, and saves a forecast that is never changed afterwards.
-- A public dashboard and API show upcoming forecasts, past forecasts next to results, and how the forecasts have scored so far.
+- A public dashboard has four tabs (fixtures, table, performance, how it works), a page per match with its forecast, each team's last five and the last five meetings, and a page per club with its fixtures, place in the table, manager and squad. A JSON API serves the forecasts.
 
 ## How it works
 
@@ -80,8 +80,8 @@ Live forecasts need a free football-data.org key. [docs/OPERATIONS.md](docs/OPER
 | Path | Contents |
 | --- | --- |
 | src/soccer_forecasting/ | Loading, checks, features, models, evaluation, live data, forecasting, API and dashboard, command line |
-| sql/ | Schema migrations (001–005), the feature query, and post-load data checks |
-| config/ | Data source and split, the model-selection protocol, live-data settings, team name mapping |
+| sql/ | Schema migrations (001–006), the feature query, and post-load data checks |
+| config/ | Data source and split, the model-selection protocol, live-data settings, team name mapping, stadiums |
 | reports/ | Baseline, model selection and final test reports, and the frozen model choice |
 | tests/ | Automated tests: parsing, loading, features, models, evaluation rules, live data, forecasting, API, cloud setup |
 | .github/workflows/ | The daily job and the test run |

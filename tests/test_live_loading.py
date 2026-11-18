@@ -7,12 +7,12 @@ the repository.
 from datetime import date, datetime, timedelta, timezone
 
 import pytest
-from live_helpers import season, write_snapshot
+from live_helpers import club_people, season, write_snapshot
 
 from soccer_forecasting import PROJECT_ROOT
 from soccer_forecasting.checks import run_checks
 from soccer_forecasting.features import FEATURE_VERSION, build_features
-from soccer_forecasting.live_loading import load_live, local_date_and_time
+from soccer_forecasting.live_loading import load_live, local_date_and_time, update_club_people
 from soccer_forecasting.loading import load_history, read_json
 from soccer_forecasting.models import load_dataset
 from soccer_forecasting.parsing import SourceDataError
@@ -189,3 +189,44 @@ def test_live_data_leaves_historical_features_and_training_data_alone(live):
     assert count(db, """SELECT count(*) FROM team_form_snapshots s JOIN matches m USING (match_id)
                         WHERE m.season = '2026-27'""") == 0
     assert load_dataset(db, split, FEATURE_VERSION, seasons).fingerprint() == fingerprint
+
+
+# --- managers and squads, from the teams file -------------------------------------------
+
+def people(db, team_name):
+    return db.execute("SELECT coach_name, coach_nationality, squad, squad_snapshot FROM teams WHERE team_name = %s",
+                      (team_name,)).fetchone()
+
+
+def test_managers_and_squads_come_from_the_newest_teams_file(live):
+    db, root = live
+    write_snapshot(root, FIRST, season(), FIRST_SEEN, teams=club_people())
+    load_live(db, root)
+    coach, nationality, squad, snapshot = people(db, "Arsenal")
+    assert (coach, nationality, snapshot) == ("Coach 57", "England", FIRST)
+    assert [p["position"] for p in squad] == ["Goalkeeper", "Defence", "Midfield", "Offence"]
+    assert squad[0] == {"name": "Player 57-0", "position": "Goalkeeper", "date_of_birth": "1995-06-15",
+                        "nationality": "England"}
+    assert count(db, "SELECT count(*) FROM teams WHERE coach_name IS NOT NULL") == 20
+
+    write_snapshot(root, SECOND, season(), SECOND_SEEN, teams=club_people("New coach"))
+    load_live(db, root)
+    assert people(db, "Arsenal")[0] == "New coach 57" and people(db, "Arsenal")[3] == SECOND
+
+
+def test_a_snapshot_without_a_teams_file_keeps_the_last_one(live):
+    db, root = live
+    write_snapshot(root, FIRST, season(), FIRST_SEEN, teams=club_people())
+    write_snapshot(root, SECOND, season(), SECOND_SEEN)
+    load_live(db, root)
+    assert people(db, "Arsenal")[0] == "Coach 57" and people(db, "Arsenal")[3] == FIRST
+
+
+def test_an_unreadable_teams_file_changes_nothing_and_stops_nothing(live):
+    db, root = live
+    write_snapshot(root, FIRST, season(), FIRST_SEEN, teams=club_people())
+    load_live(db, root)
+    write_snapshot(root, SECOND, season(finished_rounds=11), SECOND_SEEN, teams={"unexpected": "shape"})
+    summaries = load_live(db, root)
+    assert summaries[-1].loaded and people(db, "Arsenal")[0] == "Coach 57"
+    assert update_club_people(db, "football-data.org") == 0

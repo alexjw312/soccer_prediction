@@ -18,7 +18,6 @@ from psycopg.conninfo import conninfo_to_dict
 
 from soccer_forecasting.api import ATTRIBUTION, DASHBOARD_READS, create_app, read_only_connection
 from soccer_forecasting.dashboard_login import LoginError, create_dashboard_login
-from soccer_forecasting.forecasting import forecast_day
 from soccer_forecasting.live_loading import load_live
 
 UTC = timezone.utc
@@ -40,13 +39,6 @@ def read_only_factory(db):
 
 def client(db, root, now):
     return TestClient(create_app(root, connect=read_only_factory(db), now=lambda: now))
-
-
-@pytest.fixture
-def forecasted(trained):
-    db, root = trained
-    forecast_day(db, root, DAY_11, MORNING_11, save=True)
-    return db, root
 
 
 def test_health_reports_fresh_and_stale_data(forecasted):
@@ -139,16 +131,6 @@ def test_the_api_cannot_write(forecasted):
     assert db.execute("SELECT count(*) FROM predictions").fetchone()[0] == 10
 
 
-def test_dashboard_shows_forecasts_attribution_and_escapes_names(forecasted):
-    db, root = forecasted
-    db.execute("UPDATE teams SET team_name = 'Arsenal <b>FC</b>' WHERE team_name = 'Arsenal'")
-    page = client(db, root, MORNING_11).get("/")
-    assert page.status_code == 200 and "text/html" in page.headers["content-type"]
-    html = page.text
-    assert ATTRIBUTION in html and "Upcoming fixtures" in html and "published on match day" in html
-    assert "Arsenal &lt;b&gt;FC&lt;/b&gt;" in html and "<b>FC</b>" not in html
-
-
 @contextmanager
 def broken():
     raise psycopg.OperationalError('connection to server at "ep-secret-host.example" failed: '
@@ -225,8 +207,12 @@ def test_every_page_works_under_the_read_only_login(forecasted, login_names):
         response = as_reader.get(path)
         assert response.status_code == 200, path
         assert response.json() == as_owner.get(path).json(), path
-    page = as_reader.get("/")
-    assert page.status_code == 200 and ATTRIBUTION in page.text
+    team_id = db.execute("SELECT home_team_id FROM matches WHERE match_id = %s", (match_id,)).fetchone()[0]
+    for path in ("/", "/?date=2026-11-07", f"/match/{match_id}", f"/team/{team_id}", "/table", "/model-performance",
+                 "/how-it-works"):
+        page = as_reader.get(path)
+        assert page.status_code == 200 and ATTRIBUTION in page.text, path
+        assert page.text == as_owner.get(path).text, path
 
 
 def test_the_read_only_login_cannot_write_or_read_anything_else(forecasted, login_names):

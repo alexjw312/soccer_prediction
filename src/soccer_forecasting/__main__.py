@@ -13,6 +13,8 @@
   load-live          load downloaded snapshots into the database, oldest first, keeping a
                      copy of every downloaded file there
   export-live        write the downloads kept in the database back out under data/live
+  update-clubs       copy each club's manager and squad from the newest stored download onto
+                     teams (load-live also does this)
   train-deployment   refit the frozen model on every historical season (after the final test)
   predict            save forecasts for today's matches (London date); --date to choose a day,
                      --preview to show forecasts for any day without saving them
@@ -38,7 +40,7 @@ from .features import FEATURE_VERSION, build_features
 from .deployment import train_deployment
 from .final_evaluation import evaluate_final
 from .forecasting import ForecastError, forecast_day, london_date, record_job, run_daily
-from .live_loading import SNAPSHOTS, export_live, load_live
+from .live_loading import SNAPSHOTS, export_live, live_config, load_live, update_club_people
 from .live_source import LiveSourceError, fetch_snapshot, season_start_year
 from .model_selection import NAMES, ProtocolError, run_selection
 from .loading import load_history, read_json
@@ -46,7 +48,7 @@ from .migrations import MigrationError, apply_migrations
 from .parsing import SourceDataError
 
 COMMANDS = ["init-db", "load-history", "check", "build-features", "evaluate-baseline",
-            "select-model", "evaluate-final", "fetch-live", "load-live", "export-live", "train-deployment", "predict", "daily",
+            "select-model", "evaluate-final", "fetch-live", "load-live", "export-live", "update-clubs", "train-deployment", "predict", "daily",
             "serve", "create-dashboard-login"]
 
 
@@ -216,6 +218,13 @@ def main() -> int:
             print(f"{len(written)} snapshot folders written; existing folders were checked and left as they were.")
             return 0
 
+        if args.command == "update-clubs":
+            with conn.transaction():
+                updated = update_club_people(conn, live_config(PROJECT_ROOT)["provider"])
+            print(f"Updated the manager and squad of {updated} clubs from the newest stored download."
+                  if updated else "No stored teams download to read yet. Run daily or load-live first.")
+            return 0
+
         if args.command == "train-deployment":
             try:
                 run = train_deployment(conn, PROJECT_ROOT)
@@ -230,7 +239,6 @@ def main() -> int:
 
         if args.command in ("predict", "daily"):
             from datetime import date, datetime, timezone
-            from .live_loading import live_config
             zone = live_config(PROJECT_ROOT)["local_timezone"]
             started = datetime.now(timezone.utc)
             try:
