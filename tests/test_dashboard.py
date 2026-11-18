@@ -299,6 +299,18 @@ def test_a_team_page_lists_results_and_fixtures_and_the_next_match(with_people):
     html = client(db, root, MORNING_11).get(f"/team/{arsenal}").text
     assert len(re.findall(r'<a class="tf"', html)) == 38  # the whole season: 10 played, 28 to come
     assert "Show 5 more" in html and "Show 23 more" in html
+    results, coming = re.search(r'Results</h3>(.*?)Coming up</h3>(.*?)</section>', html, flags=re.S).groups()
+    for part in (results, coming):  # oldest first, folded ones included, so the season reads top to bottom
+        ids = [int(m) for m in re.findall(r'<a class="tf" href="/match/(\d+)"', part)]
+        dates = [db.execute("SELECT match_date FROM matches WHERE match_id = %s", (i,)).fetchone()[0] for i in ids]
+        assert dates == sorted(dates)
+    assert results.index("<details") < results.index('<ol class="team-fixtures">')  # earlier results fold above
+    assert coming.index('<ol class="team-fixtures">') < coming.index("<details")  # later fixtures fold below
+    newest = re.findall(r'<a class="tf" href="/match/(\d+)"', results.split("</details>")[1])
+    assert len(newest) == 5 and db.execute(
+        """SELECT max(match_date) FROM matches WHERE status = 'completed' AND %s IN (home_team_id, away_team_id)""",
+        (arsenal,)).fetchone()[0] == db.execute("SELECT match_date FROM matches WHERE match_id = %s",
+                                                (int(newest[-1]),)).fetchone()[0]
     next_match = re.search(r'id="next-title".*?</section>', html, flags=re.S).group(0)
     match_id = next(r[0] for r in round_11(db) if arsenal in r[3:])
     assert f'href="/match/{match_id}"' in next_match and "Saturday 31 October. Forecast saved" in text(next_match)

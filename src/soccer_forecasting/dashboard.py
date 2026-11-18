@@ -883,14 +883,20 @@ def _team_fixture(r: dict, zone, clubs: dict[str, Club], *, played: bool) -> str
 
 
 def _fixture_list(rows: list[dict], zone, clubs: dict[str, Club], *, played: bool, shown: int = 5) -> str:
+    """Matches oldest first, so the season reads top to bottom with today between results and fixtures.
+    Results show their newest five with the earlier ones folded above; fixtures show their next five
+    with the later ones folded below."""
     if not rows:
         return f'<p class="note pad">{"No results yet." if played else "No more fixtures this season."}</p>'
     items = [_team_fixture(r, zone, clubs, played=played) for r in rows]
-    more = ""
-    if len(items) > shown:
-        more = (f'<details class="more"><summary>Show {len(items) - shown} more</summary>'
-                f'<ol class="team-fixtures">{"".join(items[shown:])}</ol></details>')
-    return f'<ol class="team-fixtures">{"".join(items[:shown])}</ol>{more}'
+    folded, visible = (items[:-shown], items[-shown:]) if played else (items[shown:], items[:shown])
+    listed = f'<ol class="team-fixtures">{"".join(visible)}</ol>'
+    if not folded:
+        return listed
+    more = (f'<details class="more{" earlier" if played else ""}"><summary><span class="when-closed">Show '
+            f'{len(folded)} more</span><span class="when-open">Hide {len(folded)}</span></summary>'
+            f'<ol class="team-fixtures">{"".join(folded)}</ol></details>')
+    return more + listed if played else listed + more
 
 
 def _team_form(team: dict) -> str:
@@ -945,7 +951,7 @@ def team_page(*, team: dict, table: list[dict], stadium: tuple[str, str] | None,
     today = now.astimezone(zone).date()
     fixtures = team["fixtures"]
     played = sorted((r for r in fixtures if r["status"] == "completed"),
-                    key=lambda r: (r["match_date"], r["kickoff_utc"] or now), reverse=True)
+                    key=lambda r: (r["match_date"], r["kickoff_utc"] or now))
     upcoming = [r for r in fixtures if r["status"] != "completed"]
     following = next((r for r in upcoming if r["status"] == "scheduled"
                       and (r["kickoff_utc"] or now) > now), None)
@@ -1148,9 +1154,8 @@ p{margin:0}
 .last{width:120px}
 .form{display:inline-flex;gap:3px}
 .chip{display:inline-grid;place-items:center;width:18px;height:18px;border-radius:4px;font-size:11px;font-weight:600;line-height:1}
-.chip.w{background:var(--ink);color:var(--surface)}
-.chip.d{background:var(--ink-3);color:var(--surface)}
-.chip.l{border:1px solid var(--ink-3);color:var(--ink-2)}
+.chip{color:#fff;font-weight:700}
+.chip.w{background:#439664}.chip.d{background:#8E9498}.chip.l{background:#CC453E}
 
 table{border-collapse:collapse}
 .scores{width:calc(100% - 40px);max-width:600px;margin:12px 20px 0;font-size:14px}
@@ -1288,6 +1293,8 @@ table{border-collapse:collapse}
 .more summary{padding:10px 20px;color:var(--ink-2);font-weight:500;cursor:pointer;font-size:14px}
 .more summary:hover{color:var(--ink)}
 .more[open] summary{border-bottom:1px solid var(--line)}
+.more .when-open,.more[open] .when-closed{display:none}
+.more[open] .when-open{display:inline}
 .more .team-fixtures li:first-child .tf{border-top:0}
 .sheet>.team-fixtures:last-child,.sheet>.more:last-child{margin-bottom:6px}
 .excerpt .league thead th{height:30px;padding-top:0;padding-bottom:0;vertical-align:middle}
