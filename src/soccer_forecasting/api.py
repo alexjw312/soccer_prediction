@@ -29,7 +29,7 @@ from fastapi.staticfiles import StaticFiles
 from psycopg.conninfo import conninfo_to_dict
 from psycopg.rows import dict_row
 
-from . import PROJECT_ROOT, dashboard
+from . import PROJECT_ROOT, dashboard, team_colours
 from .dashboard import ATTRIBUTION
 from .env import load_env
 from .features import cutoff_offset_days
@@ -219,6 +219,7 @@ def create_app(root: Path = PROJECT_ROOT, connect=None, now=None) -> FastAPI:
     final_test = dashboard.final_test_summary(root)
     cutoff_days = cutoff_offset_days(root)
     grounds = dashboard.stadiums(root)
+    clubs = team_colours.load_clubs(root)
     app.mount("/static", StaticFiles(directory=STATIC), name="static")
 
     @app.get("/", response_class=HTMLResponse, include_in_schema=False)
@@ -229,12 +230,12 @@ def create_app(root: Path = PROJECT_ROOT, connect=None, now=None) -> FastAPI:
         day = day or dashboard.pick_day(days, today)
         return dashboard.fixtures_page(rows=dashboard.day_rows(conn, config["season"], day), days=days, day=day,
                                        today=today, now=moment, zone=zone, season=config["season"],
-                                       info=health_info(conn))
+                                       info=health_info(conn), clubs=clubs)
 
     @app.get("/table", response_class=HTMLResponse, include_in_schema=False)
     def table(conn=Depends(database)):
         return dashboard.table_page(table=dashboard.league_table(conn, config["season"]), season=config["season"],
-                                    info=health_info(conn), zone=zone)
+                                    info=health_info(conn), zone=zone, clubs=clubs)
 
     @app.get("/model-performance", response_class=HTMLResponse, include_in_schema=False)
     def performance_tab(conn=Depends(database)):
@@ -253,7 +254,7 @@ def create_app(root: Path = PROJECT_ROOT, connect=None, now=None) -> FastAPI:
             return HTMLResponse(dashboard.team_not_found_page(health_info(conn), zone), status_code=404)
         return dashboard.team_page(team=team, table=dashboard.league_table(conn, config["season"]),
                                    stadium=grounds.get(team["team_name"]), season=config["season"], now=now(),
-                                   zone=zone, info=health_info(conn))
+                                   zone=zone, info=health_info(conn), clubs=clubs)
 
     @app.get("/match/{match_id}", response_class=HTMLResponse, include_in_schema=False)
     def match_page(match_id: int, conn=Depends(database)):
@@ -261,6 +262,6 @@ def create_app(root: Path = PROJECT_ROOT, connect=None, now=None) -> FastAPI:
         if match is None:
             return HTMLResponse(dashboard.not_found_page(health_info(conn), zone), status_code=404)
         return dashboard.match_page(match=match, stadium=grounds.get(match["home"]), zone=zone,
-                                    info=health_info(conn))
+                                    info=health_info(conn), clubs=clubs)
 
     return app

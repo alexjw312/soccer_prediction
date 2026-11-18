@@ -17,8 +17,10 @@ was stored before kickoff. Team names come from the database and are always esca
 The font (Geist, SIL Open Font License) is served from this package, so the pages
 make no requests to other sites.
 
-The home/draw/away split is drawn as one bar in blue (home), neutral gray (draw) and
-orange (away). After full time the outcome that happened keeps its colour and the
+Each club has a round badge in its colours with its three-letter code (no crests: they
+are the clubs' trademarks). On a match page the home/draw/away bar uses the two clubs'
+colours, checked for visibility and clashes by team_colours.py, with the draw in neutral
+gray; the default blue and orange are the fallback. After full time the outcome that happened keeps its colour and the
 other two fade, so the bar shows the forecast and the result together. Text never
 takes a data colour; a colour always sits beside words that say the same thing.
 Times are shown in the service's local time zone (UK time).
@@ -31,6 +33,8 @@ from datetime import date, datetime
 from html import escape
 from pathlib import Path
 from urllib.parse import quote_plus
+
+from .team_colours import Club, badge, match_colours
 
 REPOSITORY = "https://github.com/alexjw312/soccer_prediction"
 ATTRIBUTION = "Football data provided by the Football-Data.org API"
@@ -310,6 +314,13 @@ def age_on(born: str | None, day: date) -> int | None:
     return day.year - birth.year - ((day.month, day.day) < (birth.month, birth.day))
 
 
+def club_badge(name: str, clubs: dict[str, Club], size: str = "") -> str:
+    """A round badge in the club's colours with its three-letter code; the name beside it says the same."""
+    code, background, text = badge(clubs.get(name), name)
+    return (f'<span class="badge{" " + size if size else ""}" style="--b:{background};--t:{text}" '
+            f'aria-hidden="true">{escape(code)}</span>')
+
+
 def team_link(team_id: int, name: str) -> str:
     return f'<a class="team-link" href="/team/{team_id}">{escape(name)}</a>'
 
@@ -346,7 +357,7 @@ def chip(letter: str) -> str:
     return f'<span class="chip {letter.lower()}" title="{names[letter]}">{letter}</span>'
 
 
-def fixture_row(r: dict, zone) -> str:
+def fixture_row(r: dict, zone, clubs: dict[str, Club]) -> str:
     e = escape
     home, away = e(r["home"]), e(r["away"])
     if r["status"] == "completed":
@@ -362,8 +373,9 @@ def fixture_row(r: dict, zone) -> str:
     if r["generated_at_utc"] is not None:
         words += " Forecast saved."
     return (f'<li><a class="fx" href="/match/{r["match_id"]}" aria-label="{words}">'
-            f'<span class="side home">{home}</span><span class="mid">{middle}</span>'
-            f'<span class="side away">{away}</span></a></li>')
+            f'<span class="side home"><span class="nm">{home}</span>{club_badge(r["home"], clubs)}</span>'
+            f'<span class="mid">{middle}</span>'
+            f'<span class="side away">{club_badge(r["away"], clubs)}<span class="nm">{away}</span></span></a></li>')
 
 
 def day_note(rows: list[dict], day: date, today: date, now: datetime, zone) -> str:
@@ -410,12 +422,13 @@ def day_strip(days: list[date], selected: date, today: date, size: int = 7) -> s
             f'{arrow(after[0] if after else None, "›", "Next match day")}</nav>')
 
 
-def table_html(table: list[dict], highlight: dict | None = None) -> str:
+def table_html(table: list[dict], clubs: dict[str, Club], highlight: dict | None = None) -> str:
     highlight = highlight or {}
     rows = "".join(
         f'<tr class="{highlight.get(r["team_id"], "")}"><td class="num pos">{i}</td>'
-        f'<td class="club">{team_link(r["team_id"], r["team_name"])}</td><td class="num">{r["played"]}</td>'
-        f'<td class="num wide">{r["won"]}</td><td class="num wide">{r["drawn"]}</td><td class="num wide">{r["lost"]}</td>'
+        f'<td class="club"><span class="club-in">{club_badge(r["team_name"], clubs, "sm")}'
+        f'{team_link(r["team_id"], r["team_name"])}</span></td>'
+        f'<td class="num">{r["played"]}</td><td class="num wide">{r["won"]}</td><td class="num wide">{r["drawn"]}</td><td class="num wide">{r["lost"]}</td>'
         f'<td class="num wide">{r["goals_for"]}</td><td class="num wide">{r["goals_against"]}</td>'
         f'<td class="num">{signed(r["goal_difference"])}</td><td class="num pts">{r["points"]}</td>'
         f'<td class="last"><span class="form">{"".join(chip(x) for x in r["form"])}</span></td></tr>'
@@ -453,7 +466,7 @@ def status_line(info: dict, zone) -> str:
 # --- tab pages ------------------------------------------------------------------------
 
 def fixtures_page(*, rows: list[dict], days: list[date], day: date, today: date, now: datetime, zone,
-                  season: str, info: dict) -> str:
+                  season: str, info: dict, clubs: dict[str, Club]) -> str:
     rounds = sorted({r["source_round"] for r in rows if r["source_round"]})
     count = f'{len(rows)} {"match" if len(rows) == 1 else "matches"}' if rows else ""
     meta = ", ".join(x for x in (", ".join(rounds), count) if x)
@@ -465,17 +478,17 @@ def fixtures_page(*, rows: list[dict], days: list[date], day: date, today: date,
         <p class="meta">{escape(meta)}{". " if meta else ""}Premier League {season_label(season)}. Times are UK time.</p>
         <p class="note">{day_note(rows, day, today, now, zone)}</p>
       </header>
-      {f'<ol class="fixtures">{"".join(fixture_row(r, zone) for r in rows)}</ol>' if rows else ""}
+      {f'<ol class="fixtures">{"".join(fixture_row(r, zone, clubs) for r in rows)}</ol>' if rows else ""}
     </section>"""
     return page("Premier League forecasts", body, info, zone, active="fixtures")
 
 
-def table_page(*, table: list[dict], season: str, info: dict, zone) -> str:
+def table_page(*, table: list[dict], season: str, info: dict, zone, clubs: dict[str, Club]) -> str:
     body = f"""
     <section class="sheet" aria-labelledby="table-title">
       <header class="sheet-head"><h1 id="table-title">Table</h1>
         <p class="meta">Premier League {season_label(season)}, from the results downloaded so far.</p></header>
-      {table_html(table)}
+      {table_html(table, clubs)}
       <p class="fine pad">Ordered by points, then goal difference, then goals scored. Last five: newest on the right.</p>
     </section>"""
     return page(f"Table, Premier League {season_label(season)}", body, info, zone, active="table")
@@ -594,7 +607,7 @@ def how_page(*, model: dict | None, cutoff_days: int, max_age_hours: int, info: 
       <h2>Data</h2>
       <p>{escape(ATTRIBUTION)}: fixtures and results for the current season.
       {escape(HISTORY_CREDIT)}: the past seasons used for training and for head-to-head records.
-      Stadium names come from a short list checked by hand.</p>
+      Stadium names and club colours come from short lists checked by hand.</p>
       <p class="links-row">{LINKS}</p>
       </div>
     </section>"""
@@ -609,7 +622,7 @@ def _forecast_section(match: dict, zone) -> str:
     if forecast is None:
         if match["status"] == "scheduled":
             text = (f'The forecast for this match is saved on the morning of {long_day(match["match_date"])}, '
-                    f'before kickoff.')
+                    f'before kickoff. What the model saw, the form numbers it used, appears with it.')
         else:
             text = "No forecast was saved for this match."
         return (f'<section class="sheet" aria-labelledby="forecast-title"><h2 id="forecast-title">Forecast</h2>'
@@ -643,21 +656,22 @@ def _forecast_section(match: dict, zone) -> str:
     </section>"""
 
 
-def _recent_list(recent: list[dict]) -> str:
+def _recent_list(recent: list[dict], clubs: dict[str, Club]) -> str:
     if not recent:
         return '<p class="fine">No league games in this project\'s data.</p>'
     items = []
     for g in recent:
         r = result_letter(g["gf"], g["ga"])
         venue = "H" if g["at_home"] else "A"
-        items.append(f'<li>{chip(r)}<span class="opp">{escape(g["opponent"])}</span>'
+        items.append(f'<li>{chip(r)}<span class="opp">{club_badge(g["opponent"], clubs, "sm")}'
+                     f'<span class="nm">{escape(g["opponent"])}</span></span>'
                      f'<span class="venue" title="{"home" if g["at_home"] else "away"}">{venue}</span>'
                      f'<span class="num sc">{g["gf"]}–{g["ga"]}</span>'
                      f'<span class="date">{short_day(g["match_date"])}</span></li>')
     return f'<ol class="recent">{"".join(items)}</ol>'
 
 
-def _head_to_head(match: dict) -> str:
+def _head_to_head(match: dict, clubs: dict[str, Club]) -> str:
     meetings, home_id = match["head_to_head"], match["home_team_id"]
     since = f" since {season_label(match['history_from'])}" if match["history_from"] else ""
     if not meetings:
@@ -673,9 +687,11 @@ def _head_to_head(match: dict) -> str:
             wins["away"] += 1
         winner = {"H": "home", "A": "away"}.get(m["result"], "")
         rows.append(f'<li><span class="date">{short_day(m["match_date"], year=True)}</span>'
-                    f'<span class="h2h-home{" won" if winner == "home" else ""}">{escape(m["home"])}</span>'
+                    f'<span class="h2h-home{" won" if winner == "home" else ""}"><span class="nm">{escape(m["home"])}</span>'
+                    f'{club_badge(m["home"], clubs, "sm")}</span>'
                     f'<span class="num sc">{m["home_goals"]}–{m["away_goals"]}</span>'
-                    f'<span class="h2h-away{" won" if winner == "away" else ""}">{escape(m["away"])}</span></li>')
+                    f'<span class="h2h-away{" won" if winner == "away" else ""}">{club_badge(m["away"], clubs, "sm")}'
+                    f'<span class="nm">{escape(m["away"])}</span></span></li>')
     n = len(meetings)
     summary = (f'{escape(match["home"])} {wins["home"]} {"win" if wins["home"] == 1 else "wins"}, '
                f'{wins["draw"]} {"draw" if wins["draw"] == 1 else "draws"}, '
@@ -744,14 +760,24 @@ def _other_forecasts(match: dict) -> str:
     return f'<ul class="fine others">{items}</ul>'
 
 
-def _side(match: dict, side: str) -> str:
+def _side(match: dict, side: str, clubs: dict[str, Club]) -> str:
     coach = match[f"{side}_coach"]
     manager = (f'<span class="coach"><span class="label">Manager</span> {escape(coach)}</span>' if coach else "")
-    return (f'<div class="side-block {side}"><a class="name" href="/team/{match[f"{side}_team_id"]}">'
-            f'{escape(match[side])}</a>{manager}</div>')
+    return (f'<div class="side-block {side}">{club_badge(match[side], clubs, "lg")}'
+            f'<a class="name" href="/team/{match[f"{side}_team_id"]}">{escape(match[side])}</a>{manager}</div>')
 
 
-def match_page(*, match: dict, stadium: tuple[str, str] | None, zone, info: dict) -> str:
+def colour_style(scope: str, colours: dict[str, dict[str, str]], names: tuple[str, ...]) -> str:
+    """A small style block that sets a page's club colours for light and dark mode.
+
+    The values are #RRGGBB strings from team_colours (the config file is checked by a test)."""
+    def rules(mode: str) -> str:
+        return ";".join(f"--{n.replace('_', '-')}:{colours[mode][n]}" for n in names)
+    return (f'<style>.{scope}{{{rules("light")}}}'
+            f'@media (prefers-color-scheme:dark){{.{scope}{{{rules("dark")}}}}}</style>')
+
+
+def match_page(*, match: dict, stadium: tuple[str, str] | None, zone, info: dict, clubs: dict[str, Club]) -> str:
     e = escape
     home, away = e(match["home"]), e(match["away"])
     played = match["status"] == "completed"
@@ -770,13 +796,16 @@ def match_page(*, match: dict, stadium: tuple[str, str] | None, zone, info: dict
                  f'href="https://www.openstreetmap.org/search?query={quote_plus(f"{ground}, {town}")}">Map</a></span>')
     else:
         where = '<span class="muted">Not listed</span>'
+    colours = match_colours(clubs.get(match["home"]), clubs.get(match["away"]))
     body = f"""
+    {colour_style("mc", colours, ("home", "away", "home_ink", "away_ink"))}
+    <div class="mc">
     <a class="back" href="/?date={day.isoformat()}"><span aria-hidden="true">‹</span> {long_day(day)}</a>
     <section class="sheet match-head" aria-labelledby="match-title">
       <p class="meta center">Premier League {season_label(match["season"])}{round_text}</p>
       <h1 id="match-title" class="sr">{home} v {away}</h1>
       <div class="teams">
-        {_side(match, "home")}<span class="mid">{centre}</span>{_side(match, "away")}
+        {_side(match, "home", clubs)}<span class="mid">{centre}</span>{_side(match, "away", clubs)}
       </div>
       <dl class="info">
         <div><dt>Date</dt><dd>{long_day(day, year=True)}</dd></div>
@@ -787,13 +816,14 @@ def match_page(*, match: dict, stadium: tuple[str, str] | None, zone, info: dict
     {_forecast_section(match, zone)}
     <section class="sheet" aria-labelledby="recent-title"><h2 id="recent-title">Last five league games</h2>
       <div class="two pad">
-        <div><h3>{team_link(match["home_team_id"], match["home"])}</h3>{_recent_list(match["recent"]["home"])}</div>
-        <div><h3>{team_link(match["away_team_id"], match["away"])}</h3>{_recent_list(match["recent"]["away"])}</div>
+        <div><h3>{team_link(match["home_team_id"], match["home"])}</h3>{_recent_list(match["recent"]["home"], clubs)}</div>
+        <div><h3>{team_link(match["away_team_id"], match["away"])}</h3>{_recent_list(match["recent"]["away"], clubs)}</div>
       </div>
     </section>
     <section class="sheet" aria-labelledby="h2h-title"><h2 id="h2h-title">Head to head</h2>
-      {_head_to_head(match)}</section>
-    {_features_section(match)}"""
+      {_head_to_head(match, clubs)}</section>
+    {_features_section(match)}
+    </div>"""
     return page(f"{match['home']} v {match['away']}", body, info, zone, active="fixtures")
 
 
@@ -803,7 +833,7 @@ POSITIONS = (("Goalkeeper", "Goalkeepers"), ("Defence", "Defenders"), ("Midfield
              ("Offence", "Forwards"))
 
 
-def table_excerpt(table: list[dict], team_id: int, around: int = 2) -> str:
+def table_excerpt(table: list[dict], team_id: int, clubs: dict[str, Club], around: int = 2) -> str:
     """The team's row with two clubs above and below; a faded row hints at more on each cut side."""
     index = next((k for k, r in enumerate(table) if r["team_id"] == team_id), None)
     if index is None:
@@ -817,7 +847,8 @@ def table_excerpt(table: list[dict], team_id: int, around: int = 2) -> str:
         current = ' class="current"' if k == index else ""
         hidden = ' class="ghost" aria-hidden="true"' if ghost else current
         name = escape(r["team_name"]) if ghost or k == index else team_link(r["team_id"], r["team_name"])
-        return (f'<tr{hidden}><td class="num pos">{k + 1}</td><td class="club">{name}</td>'
+        return (f'<tr{hidden}><td class="num pos">{k + 1}</td>'
+                f'<td class="club"><span class="club-in">{club_badge(r["team_name"], clubs, "sm")}{name}</span></td>'
                 f'<td class="num">{r["played"]}</td><td class="num">{signed(r["goal_difference"])}</td>'
                 f'<td class="num pts">{r["points"]}</td>'
                 f'<td class="last"><span class="form">{"".join(chip(x) for x in r["form"])}</span></td></tr>')
@@ -832,7 +863,7 @@ def table_excerpt(table: list[dict], team_id: int, around: int = 2) -> str:
             f'<tbody>{"".join(rows)}</tbody></table></div>')
 
 
-def _team_fixture(r: dict, zone, *, played: bool) -> str:
+def _team_fixture(r: dict, zone, clubs: dict[str, Club], *, played: bool) -> str:
     venue = "H" if r["at_home"] else "A"
     if played:
         letter = result_letter(r["gf"], r["ga"])
@@ -847,13 +878,14 @@ def _team_fixture(r: dict, zone, *, played: bool) -> str:
     label = f'{short_day(r["match_date"])}, {"home" if r["at_home"] else "away"} against {escape(r["opponent"])}, {words}.'
     return (f'<li><a class="tf" href="/match/{r["match_id"]}" aria-label="{label}">'
             f'<span class="date">{short_day(r["match_date"])}</span><span class="venue">{venue}</span>'
-            f'<span class="opp">{escape(r["opponent"])}</span>{end}</a></li>')
+            f'<span class="opp">{club_badge(r["opponent"], clubs, "sm")}<span class="nm">{escape(r["opponent"])}</span>'
+            f'</span>{end}</a></li>')
 
 
-def _fixture_list(rows: list[dict], zone, *, played: bool, shown: int = 5) -> str:
+def _fixture_list(rows: list[dict], zone, clubs: dict[str, Club], *, played: bool, shown: int = 5) -> str:
     if not rows:
         return f'<p class="note pad">{"No results yet." if played else "No more fixtures this season."}</p>'
-    items = [_team_fixture(r, zone, played=played) for r in rows]
+    items = [_team_fixture(r, zone, clubs, played=played) for r in rows]
     more = ""
     if len(items) > shown:
         more = (f'<details class="more"><summary>Show {len(items) - shown} more</summary>'
@@ -908,7 +940,7 @@ def _squad(team: dict, today: date) -> str:
 
 
 def team_page(*, team: dict, table: list[dict], stadium: tuple[str, str] | None, season: str, now: datetime,
-              zone, info: dict) -> str:
+              zone, info: dict, clubs: dict[str, Club]) -> str:
     e = escape
     today = now.astimezone(zone).date()
     fixtures = team["fixtures"]
@@ -934,7 +966,7 @@ def team_page(*, team: dict, table: list[dict], stadium: tuple[str, str] | None,
         note = ("Forecast saved. Open the match to see it." if following["generated_at_utc"] is not None
                 else "The forecast is saved on the morning of match day.")
         next_match = (f'<p class="note pad">{long_day(following["match_date"])}. {note}</p>'
-                      f'<ol class="fixtures">{fixture_row(following, zone)}</ol>')
+                      f'<ol class="fixtures">{fixture_row(following, zone, clubs)}</ol>')
     else:
         next_match = '<p class="note pad">No more matches scheduled this season.</p>'
 
@@ -945,8 +977,12 @@ def team_page(*, team: dict, table: list[dict], stadium: tuple[str, str] | None,
             source = f" in the download of {short_day(seen, year=True)}"
         except ValueError:
             source = ""
+    accent = {mode: {"team": c["home"]} for mode, c in match_colours(clubs.get(team["team_name"]), None).items()}
     body = f"""
-    <section class="sheet match-head" aria-labelledby="team-title">
+    {colour_style("tc", accent, ("team",))}
+    <div class="tc">
+    <section class="sheet match-head team-head" aria-labelledby="team-title">
+      <div class="team-mark">{club_badge(team["team_name"], clubs, "xl")}</div>
       <h1 id="team-title" class="team-title">{e(team["team_name"])}</h1>
       <p class="meta center">Premier League {season_label(season)}</p>
       <dl class="info">
@@ -957,17 +993,18 @@ def team_page(*, team: dict, table: list[dict], stadium: tuple[str, str] | None,
     </section>
     <section class="sheet" aria-labelledby="next-title"><h2 id="next-title">Next match</h2>{next_match}</section>
     <section class="sheet" aria-labelledby="position-title"><h2 id="position-title">In the table</h2>
-      {table_excerpt(table, team["team_id"])}
+      {table_excerpt(table, team["team_id"], clubs)}
       <p class="fine pad"><a href="/table">Full table</a></p></section>
     <section class="sheet" aria-labelledby="fixtures-title"><h2 id="fixtures-title">Results and fixtures</h2>
-      <h3 class="sub pad">Results</h3>{_fixture_list(played, zone, played=True)}
-      <h3 class="sub pad">Coming up</h3>{_fixture_list(upcoming, zone, played=False)}
+      <h3 class="sub pad">Results</h3>{_fixture_list(played, zone, clubs, played=True)}
+      <h3 class="sub pad">Coming up</h3>{_fixture_list(upcoming, zone, clubs, played=False)}
     </section>
     <section class="sheet" aria-labelledby="form-title"><h2 id="form-title">What the model saw</h2>
       {_team_form(team)}</section>
     <section class="sheet" aria-labelledby="squad-title"><h2 id="squad-title">Squad</h2>
       {_squad(team, today)}
-      <p class="fine pad">Manager and squad as listed by football-data.org{source}.</p></section>"""
+      <p class="fine pad">Manager and squad as listed by football-data.org{source}.</p></section>
+    </div>"""
     return page(team["team_name"], body, info, zone, active="")
 
 
@@ -1090,7 +1127,7 @@ p{margin:0}
   padding:14px 20px;border-top:1px solid var(--line);text-decoration:none;color:var(--ink)}
 .fx:hover{background:var(--hover)}
 .fx:focus-visible{outline-offset:-2px;border-radius:0}
-.side{font-weight:500;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.side{font-weight:500}
 .side.home{text-align:right}
 .mid{display:flex;flex-direction:column;align-items:center;gap:1px}
 .time{font-weight:500;color:var(--ink-2)}
@@ -1149,7 +1186,8 @@ table{border-collapse:collapse}
 .back:hover{color:var(--ink)}
 .match-head{padding:18px 20px 0}
 .teams{display:grid;grid-template-columns:minmax(0,1fr) auto minmax(0,1fr);align-items:center;gap:20px;margin:16px 0 20px}
-.side-block{display:flex;flex-direction:column;gap:3px;min-width:0}
+.side-block{display:flex;flex-direction:column;align-items:flex-start;gap:4px;min-width:0}
+.side-block .badge{margin-bottom:4px}
 .side-block.home{align-items:flex-end;text-align:right}
 .teams .name{font-size:21px;font-weight:600;letter-spacing:-.01em;text-decoration:none}
 .teams .name:hover,.team-link:hover{text-decoration:underline}
@@ -1179,8 +1217,9 @@ table{border-collapse:collapse}
 .bar{display:flex;gap:2px;height:28px}
 .seg{flex-basis:0;min-width:0;border-radius:4px;display:flex;align-items:center;padding:0 8px;color:#fff;
   font-size:13px;font-weight:600;white-space:nowrap}
-.seg.home{background:var(--home)}.seg.draw{background:var(--draw)}.seg.away{background:var(--away)}
-.seg.faded{color:var(--ink-2)}
+.seg.home{background:var(--home);color:var(--home-ink,#fff)}.seg.draw{background:var(--draw)}
+.seg.away{background:var(--away);color:var(--away-ink,#fff)}
+.seg.home.faded,.seg.draw.faded,.seg.away.faded{color:var(--ink-2)}
 .seg.home.faded{background:color-mix(in oklab,var(--home) 20%,var(--surface))}
 .seg.draw.faded{background:color-mix(in oklab,var(--draw) 20%,var(--surface))}
 .seg.away.faded{background:color-mix(in oklab,var(--away) 20%,var(--surface))}
@@ -1218,7 +1257,23 @@ table{border-collapse:collapse}
 .facts dt{color:var(--ink-3)}.facts dd{margin:0;overflow-wrap:anywhere}
 .others{padding:0 20px 16px 38px}
 
-.team-title{text-align:center;font-size:26px;margin-top:6px}
+.team-title{text-align:center;font-size:26px;margin-top:8px}
+.team-head{border-top:4px solid var(--team,var(--line))}
+.team-mark{display:flex;justify-content:center;margin-top:6px}
+.badge{--size:22px;display:inline-grid;place-items:center;flex:none;width:var(--size);height:var(--size);border-radius:50%;
+  background:var(--b);color:var(--t);font-size:calc(var(--size) * .36);font-weight:600;letter-spacing:.02em;line-height:1;
+  box-shadow:0 0 0 1px rgba(127,127,127,.45);vertical-align:middle;font-feature-settings:normal}
+.badge.sm{--size:16px;margin-right:8px;font-size:0;box-shadow:inset 0 0 0 3px var(--t),0 0 0 1px rgba(127,127,127,.45)}
+.badge.lg{--size:40px}
+.badge.xl{--size:56px}
+.side{display:flex;align-items:center;gap:10px;min-width:0}
+.side.home{justify-content:flex-end}
+.side .nm{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.club-in,.tf .opp,.recent .opp{display:flex;align-items:center;min-width:0}
+.club-in a,.nm{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;min-width:0}
+.h2h-home,.h2h-away{display:flex;align-items:center;gap:0}
+.h2h-home{justify-content:flex-end}
+.h2h-home .badge.sm{margin:0 0 0 8px}
 .sub{font-size:14px;margin:6px 0 8px}
 .team-fixtures{list-style:none;margin:0;padding:0;font-size:14px}
 .tf{display:grid;grid-template-columns:100px 22px minmax(0,1fr) auto;gap:10px;align-items:center;padding:9px 20px;
@@ -1238,7 +1293,7 @@ table{border-collapse:collapse}
 .excerpt .league thead th{height:30px;padding-top:0;padding-bottom:0;vertical-align:middle}
 .excerpt .league td{height:38px;padding-top:0;padding-bottom:0}
 .excerpt tr.current td{background:var(--hover);font-weight:600}
-.excerpt tr.current td:first-child{box-shadow:inset 3px 0 var(--ink)}
+.excerpt tr.current td:first-child{box-shadow:inset 3px 0 var(--team,var(--ink))}
 .excerpt.cut-top{-webkit-mask-image:linear-gradient(#000 0 30px,rgba(0,0,0,.08) 30px,#000 72px);
   mask-image:linear-gradient(#000 0 30px,rgba(0,0,0,.08) 30px,#000 72px)}
 .excerpt.cut-bottom{-webkit-mask-image:linear-gradient(to top,rgba(0,0,0,.08) 0,#000 42px);
@@ -1269,7 +1324,8 @@ table{border-collapse:collapse}
   .pad{padding-left:16px;padding-right:16px}
   .sheet>h2{padding:14px 16px 8px}
   .fx{grid-template-columns:minmax(0,1fr) 72px minmax(0,1fr);padding:12px 12px;column-gap:8px}
-  .side{white-space:normal;line-height:1.3}
+  .side{line-height:1.3;gap:7px}
+  .side .nm{white-space:normal}
   .step{width:22px}
   .day .dow{font-size:12px}.day .dom{font-size:11px}
   .league .wide{display:none}

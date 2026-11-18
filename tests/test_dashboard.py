@@ -19,6 +19,7 @@ from soccer_forecasting.api import ATTRIBUTION
 from soccer_forecasting.dashboard import (age_on, final_test_summary, league_table, ordinal, pick_day, stadiums,
                                           whole_percents)
 from soccer_forecasting.live_loading import load_live
+from soccer_forecasting.team_colours import load_clubs, match_colours
 
 UTC = timezone.utc
 AFTER_ROUND_11 = datetime(2026, 11, 1, 5, 0, tzinfo=UTC)
@@ -222,6 +223,37 @@ def test_fonts_come_from_this_site_only(forecasted):
     for path in (*TABS, f"/match/{match_id}", f"/team/{round_11(db)[0][3]}"):
         html = api.get(path).text  # links out are fine; nothing may load from another site
         assert not re.search(r'(src|href)="https?://(?!github\.com/|www\.openstreetmap\.org/search)', html), path
+
+
+# --- club badges and colours ---------------------------------------------------------
+
+def test_fixture_rows_carry_both_clubs_badges(forecasted):
+    db, root = forecasted
+    clubs = load_clubs(root)
+    rows = fixture_rows(client(db, root, MORNING_11).get("/").text)
+    for row, (_, home, away, *_) in zip(rows, round_11(db)):
+        codes = re.findall(r'<span class="badge"[^>]*aria-hidden="true">([A-Z]{3})</span>', row)
+        assert codes == [clubs[home].code, clubs[away].code]
+
+
+def test_the_match_page_draws_the_bar_in_the_two_clubs_colours(forecasted):
+    db, root = forecasted
+    match_id, home, away, *_ = round_11(db)[0]
+    clubs = load_clubs(root)
+    expected = match_colours(clubs[home], clubs[away])
+    html = client(db, root, MORNING_11).get(f"/match/{match_id}").text
+    style = re.search(r"<style>\.mc\{(.*?)\}@media \(prefers-color-scheme:dark\)\{\.mc\{(.*?)\}\}</style>", html)
+    for mode, rules in (("light", style.group(1)), ("dark", style.group(2))):
+        assert f'--home:{expected[mode]["home"]}' in rules and f'--away:{expected[mode]["away"]}' in rules
+    assert '<div class="mc">' in html and html.count('class="badge lg"') == 2
+
+
+def test_the_team_page_carries_the_clubs_colour(with_people):
+    db, root = with_people
+    clubs = load_clubs(root)
+    html = client(db, root, MORNING_11).get(f"/team/{team_id(db, 'Arsenal')}").text
+    assert f"--team:{match_colours(clubs['Arsenal'], None)['light']['home']}" in html
+    assert '<span class="badge xl"' in html and ">ARS</span>" in html
 
 
 # --- team pages ------------------------------------------------------------------------

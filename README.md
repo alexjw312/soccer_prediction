@@ -81,7 +81,7 @@ Live forecasts need a free football-data.org key. [docs/OPERATIONS.md](docs/OPER
 | --- | --- |
 | src/soccer_forecasting/ | Loading, checks, features, models, evaluation, live data, forecasting, API and dashboard, command line |
 | sql/ | Schema migrations (001–006), the feature query, and post-load data checks |
-| config/ | Data source and split, the model-selection protocol, live-data settings, team name mapping, stadiums |
+| config/ | Data source and split, the model-selection protocol, live-data settings, team name mapping, stadiums, club colours |
 | reports/ | Baseline, model selection and final test reports, and the frozen model choice |
 | tests/ | Automated tests: parsing, loading, features, models, evaluation rules, live data, forecasting, API, cloud setup |
 | .github/workflows/ | The daily job and the test run |

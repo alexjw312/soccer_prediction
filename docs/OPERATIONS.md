@@ -99,7 +99,7 @@ Then open http://127.0.0.1:8000 for the dashboard or http://127.0.0.1:8000/docs 
 | Address | What it returns |
 | --- | --- |
 | / | Fixtures tab: one match day at a time (?date=YYYY-MM-DD picks another), with kickoff times or scores |
-| /match/{id} | One match: date, kickoff, stadium, managers, its forecast, each team's last five, the last five meetings, what the model saw |
+| /match/{id} | One match: date, kickoff, stadium, managers, its forecast (in the two clubs' colours), each team's last five, the last five meetings, what the model saw |
 | /team/{id} | One club: manager, stadium, next match, its part of the table, results and fixtures, form from its latest forecast, squad |
 | /table | Table tab: the league table from this season's results |
 | /model-performance | Performance tab: live scores, every scored forecast, and the one-time final test |
@@ -112,7 +112,7 @@ Then open http://127.0.0.1:8000 for the dashboard or http://127.0.0.1:8000/docs 
 | /matches/{id}/forecasts | Every forecast saved for one match |
 | /performance | Log loss and accuracy of forecasts for matches played on their forecast day, against historical shares and one third each |
 
-The web pages are built in src/soccer_forecasting/dashboard.py, with the font (Geist, SIL Open Font License) served from the package, so they load nothing from other sites. The service only reads saved forecasts and never recomputes one. Its database session is read-only, and every response carries the attribution "Football data provided by the Football-Data.org API".
+The web pages are built in src/soccer_forecasting/dashboard.py. Clubs are shown with a round badge in their colours and a three-letter code rather than their crests, which are the clubs' trademarks; src/soccer_forecasting/team_colours.py checks each pairing's colours for visibility and clashes, in light and dark mode. The font (Geist, SIL Open Font License) served from the package, so they load nothing from other sites. The service only reads saved forecasts and never recomputes one. Its database session is read-only, and every response carries the attribution "Football data provided by the Football-Data.org API".
 
 ## The daily job on GitHub Actions with Neon
 
@@ -159,4 +159,4 @@ The command creates the login with a long random password, checks that a delete 
 
 ## Each summer: the new season
 
-config/live.json names the live season (2026-27). Before the next season starts, it needs the new season and start year, and any newly promoted clubs need their football-data.org ids in config/team_aliases.csv and their stadium and town in config/stadiums.csv (a test fails until each club has one). Until then, the daily job stops with an error rather than load another season's data.
+config/live.json names the live season (2026-27). Before the next season starts, it needs the new season and start year, and any newly promoted clubs need their football-data.org ids in config/team_aliases.csv their stadium and town in config/stadiums.csv, and their three-letter code and two kit colours in config/club_colours.csv (tests fail until each club has both). Until then, the daily job stops with an error rather than load another season's data.
